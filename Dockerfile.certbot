@@ -1,0 +1,8 @@
+FROM docker:27-cli
+
+RUN apk add --no-cache certbot
+
+COPY nginx/renew-certbot.sh /usr/local/bin/renew-certbot.sh
+RUN chmod +x /usr/local/bin/renew-certbot.sh
+
+ENTRYPOINT ["/usr/local/bin/renew-certbot.sh"]

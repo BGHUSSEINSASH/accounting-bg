@@ -1,0 +1,52 @@
+services:
+  app:
+    container_name: accounting-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - backend/.env.production
+    environment:
+      PORT: 3000
+      DB_PATH: /app/backend/data/accounting.db
+      UPLOAD_DIR: /app/backend/uploads
+      BACKUP_DIR: /app/backend/backups
+    expose:
+      - "3000"
+    volumes:
+      - ./backend/data:/app/backend/data
+      - ./backend/uploads:/app/backend/uploads
+      - ./backend/backups:/app/backend/backups
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: accounting-nginx
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/certs:/etc/letsencrypt:ro
+      - ./nginx/www:/var/www/certbot:ro
+    restart: unless-stopped
+
+  certbot:
+    container_name: accounting-certbot
+    build:
+      context: .
+      dockerfile: Dockerfile.certbot
+    depends_on:
+      - nginx
+    environment:
+      DOMAIN_NAME: example.com
+      WWW_DOMAIN: www.example.com
+      NGINX_CONTAINER_NAME: accounting-nginx
+      CERTBOT_WEBROOT: /var/www/certbot
+    volumes:
+      - ./nginx/certs:/etc/letsencrypt
+      - ./nginx/www:/var/www/certbot
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped

@@ -1,0 +1,13 @@
+**/node_modules
+**/dist
+**/.env
+**/.DS_Store
+**/logs
+**/stderr*.txt
+**/stdout*.txt
+backend/data/*.db-journal
+backend/data/*.db-wal
+backend/data/*.db-shm
+backend/backups
+backend/uploads
+frontend/dist

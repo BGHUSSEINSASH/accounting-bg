@@ -1,0 +1,246 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --sidebar-width: 260px;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100;
+    font-family: 'Cairo', system-ui, sans-serif;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+  }
+
+  .dark * {
+    scrollbar-color: #374151 transparent;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-100 p-6 dark:bg-gray-800 dark:border-gray-700;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .card-hover {
+    @apply cursor-pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .card-hover:hover {
+    transform: translateY(-2px);
+    @apply shadow-md;
+  }
+
+  .stat-card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex items-center gap-4 dark:bg-gray-800 dark:border-gray-700;
+  }
+
+  .stat-card-primary {
+    @apply rounded-xl p-5 flex items-center gap-4 text-white;
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+  }
+
+  .stat-card-green {
+    @apply rounded-xl p-5 flex items-center gap-4 text-white;
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+  }
+
+  .stat-card-purple {
+    @apply rounded-xl p-5 flex items-center gap-4 text-white;
+    background: linear-gradient(135deg, #a855f7, #9333ea);
+  }
+
+  .stat-card-yellow {
+    @apply rounded-xl p-5 flex items-center gap-4 text-white;
+    background: linear-gradient(135deg, #eab308, #ca8a04);
+  }
+
+  .stat-card-red {
+    @apply rounded-xl p-5 flex items-center gap-4 text-white;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+  }
+
+  .btn-primary {
+    @apply bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors font-medium text-sm;
+  }
+
+  .btn-secondary {
+    @apply bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600;
+  }
+
+  .btn-danger {
+    @apply bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors font-medium text-sm;
+  }
+
+  .btn-outline {
+    @apply border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800;
+  }
+
+  .btn-ghost {
+    @apply text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors font-medium text-sm dark:text-gray-400 dark:hover:bg-gray-800;
+  }
+
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+
+  .btn-lg {
+    @apply px-6 py-3 text-base;
+  }
+
+  .input-field {
+    @apply w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200;
+  }
+
+  .select-field {
+    @apply w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200;
+  }
+
+  .table-header {
+    @apply px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50 dark:bg-gray-800 dark:text-gray-400;
+  }
+
+  .table-header-gradient {
+    @apply px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase tracking-wider;
+    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+  }
+
+  .table-cell {
+    @apply px-4 py-3 text-sm text-gray-700 border-t border-gray-100 dark:text-gray-300 dark:border-gray-700;
+  }
+
+  .table-container {
+    @apply rounded-xl overflow-hidden shadow-sm border border-gray-100 dark:border-gray-700;
+  }
+
+  .table-row-hover:hover {
+    @apply bg-gray-50 dark:bg-gray-750;
+  }
+
+  .table-striped tbody tr:nth-child(even) {
+    @apply bg-gray-50/50 dark:bg-gray-800/30;
+  }
+
+  .badge {
+    @apply px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-success {
+    @apply bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300;
+  }
+
+  .badge-warning {
+    @apply bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300;
+  }
+
+  .badge-danger {
+    @apply bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300;
+  }
+
+  .badge-info {
+    @apply bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300;
+  }
+
+  .badge-gray {
+    @apply bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300;
+  }
+
+  .badge-primary {
+    @apply bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300;
+  }
+
+  .page-title {
+    @apply text-2xl font-bold text-gray-800 dark:text-gray-100;
+  }
+
+  .page-subtitle {
+    @apply text-sm text-gray-500 mt-1 dark:text-gray-400;
+  }
+
+  .heading-1 {
+    @apply text-3xl font-bold text-gray-900 dark:text-gray-100;
+  }
+
+  .heading-2 {
+    @apply text-2xl font-semibold text-gray-800 dark:text-gray-100;
+  }
+
+  .heading-3 {
+    @apply text-xl font-semibold text-gray-800 dark:text-gray-100;
+  }
+
+  .modal-overlay {
+    @apply fixed inset-0 z-50 flex items-center justify-center p-4;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    animation: fadeIn 0.2s ease;
+  }
+
+  .modal-content {
+    @apply bg-white rounded-2xl shadow-xl border border-gray-100 p-6 w-full max-w-lg dark:bg-gray-800 dark:border-gray-700;
+    animation: slideUp 0.25s ease;
+  }
+
+  .sidebar-link {
+    @apply flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-100 hover:text-gray-900 transition-colors dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200;
+  }
+
+  .sidebar-link-active {
+    @apply flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-lg transition-colors bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-300;
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, #6366f1, #8b5cf6);
+  }
+}
+
+@layer utilities {
+  .animate-fadeIn {
+    animation: fadeIn 0.3s ease forwards;
+  }
+
+  .animate-slideUp {
+    animation: slideUp 0.3s ease forwards;
+  }
+
+  .animate-pulse-slow {
+    animation: pulse-slow 3s ease-in-out infinite;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}

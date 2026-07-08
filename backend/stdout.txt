@@ -1,0 +1,3 @@
+Database initialized successfully
+[32minfo[39m: Server running on http://localhost:3000 {"timestamp":"2026-07-04 20:29:32"}
+Server running on http://localhost:3000
