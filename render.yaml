@@ -1,21 +1,23 @@
 services:
   # ================================================
   # Backend API — Express + TypeScript + PostgreSQL
+  # Deploy button: https://render.com/deploy
   # ================================================
   - type: web
     name: accounting-bg-backend
-    env: node
+    runtime: node
     region: frankfurt
     plan: free
     rootDir: backend
     buildCommand: npm install --ignore-scripts && npm run build
     startCommand: node dist/app.js
     healthCheckPath: /api/health
+    autoDeploy: true
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: 3000
+        value: "3000"
       - key: DATABASE_URL
         fromDatabase:
           name: accounting-bg-db
@@ -29,9 +31,9 @@ services:
       - key: REFRESH_EXPIRES_IN
         value: 7d
       - key: FRONTEND_ORIGIN
-        sync: false   # Set this to your Vercel URL after deploying frontend
+        value: https://accounting-bg.vercel.app
       - key: CORS_ORIGIN
-        sync: false   # Same as FRONTEND_ORIGIN
+        value: https://accounting-bg.vercel.app
       - key: TRUST_PROXY
         value: "1"
       - key: UPLOAD_DIR
@@ -42,12 +44,34 @@ services:
         value: none
 
   # ================================================
-  # PostgreSQL Database (Supabase-compatible schema)
+  # Database Migration Job (runs on deploy)
   # ================================================
+  - type: worker
+    name: accounting-bg-migrate
+    runtime: node
+    region: frankfurt
+    plan: free
+    rootDir: backend
+    buildCommand: npm install --ignore-scripts && npm run build
+    startCommand: node -e "const {initializeDatabase} = require('./dist/config/database'); initializeDatabase().then(() => { console.log('DB initialized'); process.exit(0); }).catch(e => { console.error(e); process.exit(1); });"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: accounting-bg-db
+          property: connectionString
+      - key: NODE_ENV
+        value: production
+
+# ================================================
+# PostgreSQL Database
+# ================================================
 databases:
   - name: accounting-bg-db
     databaseName: accounting
     user: accounting_user
     region: frankfurt
     plan: free
-    postgresMajorVersion: 16
+    postgresMajorVersion: "16"
+    ipAllowList:
+      - source: 0.0.0.0/0
+        description: Allow all (Render services)
