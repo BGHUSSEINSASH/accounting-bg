@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   DollarSign, TrendingUp, Users, Package, Clock, AlertTriangle, Stethoscope,
   ArrowUp, ArrowDown, FileText, ShoppingCart, Plus, UserCheck, BarChart3,
-  Activity, CreditCard, Calendar
+  Activity, CreditCard, Calendar, PhoneCall, AlertCircle
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend, AreaChart, Area } from 'recharts';
 import api from '../../services/api';
@@ -141,6 +141,48 @@ export default function DashboardPage() {
         <DashboardStatCard title={t('dashboard.pending_orders')} value={stats?.pending_invoices || 0} icon={<AlertTriangle className="w-5 h-5" />} colorIndex={5} subtitle={formatCurrency(stats?.pending_amount || 0)} />
         <DashboardStatCard title={t('doctors.title')} value={stats?.active_doctors || 0} icon={<Stethoscope className="w-5 h-5" />} colorIndex={6} />
       </div>
+
+      {/* Overdue Receivables Alert */}
+      {(stats as any)?.overdue_count > 0 && (
+        <div className="bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 rounded-xl p-5">
+          <div className="flex items-start justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-3">
+              <div className="bg-red-100 p-2.5 rounded-lg">
+                <AlertCircle className="w-6 h-6 text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-red-800 text-lg">{t('dashboard.overdue_receivables')}</h3>
+                <p className="text-sm text-red-600 mt-0.5">
+                  {(stats as any).overdue_count} {t('dashboard.overdue_count')} — {formatCurrency((stats as any).overdue_amount)}
+                </p>
+              </div>
+            </div>
+            <Link to="/accounting/aging" className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors">
+              {t('dashboard.view_report')}
+            </Link>
+          </div>
+          {(stats as any)?.overdue_top?.length > 0 && (
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {(stats as any).overdue_top.map((client: any, idx: number) => (
+                <div key={idx} className="bg-white/80 rounded-lg p-3 flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{client.client_name}</p>
+                    <p className="text-xs text-gray-500">{client.invoice_count} فاتورة</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-sm font-bold text-red-700">{formatCurrency(client.total_overdue)}</span>
+                    {client.phone && (
+                      <a href={`tel:${client.phone}`} className="p-1.5 bg-green-100 rounded-lg hover:bg-green-200 transition-colors" title="اتصال">
+                        <PhoneCall className="w-3.5 h-3.5 text-green-700" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

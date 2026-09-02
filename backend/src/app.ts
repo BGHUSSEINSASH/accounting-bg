@@ -239,8 +239,16 @@ app.use('/api', tileProxyRoutes);
 app.use('/api/cloud-sync', cloudSyncRoutes);
 
 // Health check
-app.get('/api/health', (_req, res) => {
+app.get('/api/health', async (_req, res) => {
   const used = process.memoryUsage();
+  let dbStatus = 'unknown';
+  try {
+    const { getPool } = await import('./config/database');
+    await getPool().query('SELECT 1');
+    dbStatus = 'connected';
+  } catch {
+    dbStatus = 'error';
+  }
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
@@ -250,7 +258,7 @@ app.get('/api/health', (_req, res) => {
       heapTotal: Math.round(used.heapTotal / 1024 / 1024 * 100) / 100,
       rss: Math.round(used.rss / 1024 / 1024 * 100) / 100,
     },
-    database: process.env.DB_PATH || './data/accounting.db',
+    database: dbStatus,
     node: process.version,
   });
 });

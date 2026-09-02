@@ -12,6 +12,7 @@ const JournalEntriesPage = lazy(() => import('./pages/accounting/JournalEntriesP
 const TrialBalancePage = lazy(() => import('./pages/accounting/TrialBalancePage'));
 const IncomeStatementPage = lazy(() => import('./pages/accounting/IncomeStatementPage'));
 const BalanceSheetPage = lazy(() => import('./pages/accounting/BalanceSheetPage'));
+const AgingReportPage = lazy(() => import('./pages/accounting/AgingReportPage'));
 
 const SalesInvoicesPage = lazy(() => import('./pages/sales/SalesInvoicesPage'));
 const NewSalePage = lazy(() => import('./pages/sales/NewSalePage'));
@@ -118,6 +119,7 @@ function App() {
           <Route path="/accounting/trial-balance" element={<ProtectedRoute><TrialBalancePage /></ProtectedRoute>} />
           <Route path="/accounting/income-statement" element={<ProtectedRoute><IncomeStatementPage /></ProtectedRoute>} />
           <Route path="/accounting/balance-sheet" element={<ProtectedRoute><BalanceSheetPage /></ProtectedRoute>} />
+          <Route path="/accounting/aging" element={<ProtectedRoute><AgingReportPage /></ProtectedRoute>} />
           <Route path="/accounting/fixed-assets" element={<ProtectedRoute><FixedAssetsPage /></ProtectedRoute>} />
           <Route path="/accounting/budgets" element={<ProtectedRoute><BudgetsPage /></ProtectedRoute>} />
           <Route path="/accounting/bank-reconciliation" element={<ProtectedRoute><BankReconciliationPage /></ProtectedRoute>} />

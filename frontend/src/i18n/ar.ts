@@ -1,4 +1,4 @@
-const ar: Record<string, string> = {
+﻿const ar: Record<string, string> = {
   // Common
   'common.save': 'حفظ',
   'common.cancel': 'إلغاء',
@@ -1422,6 +1422,32 @@ const ar: Record<string, string> = {
 
   // Pagination
   'pagination.of': 'من',
+
+  // Aging Report
+  'aging.title': 'تقرير الذمم المتأخرة',
+  'aging.client': 'العميل',
+  'aging.phone': 'الهاتف',
+  'aging.balance': 'الرصيد',
+  'aging.total': 'الإجمالي',
+  'aging.actions': 'الإجراءات',
+  'aging.send_reminder': 'إرسال تذكير',
+  'aging.call': 'اتصال',
+  'aging.collection_note': 'ملاحظة تحصيل',
+  'aging.current': 'جاري',
+  'aging.days_30': 'حتى 30 يوم',
+  'aging.days_60': '31-60 يوم',
+  'aging.days_90': '61-90 يوم',
+  'aging.over_90': 'أكثر من 90 يوم',
+
+  // Dashboard overdue
+  'dashboard.overdue_receivables': 'الذمم المتأخرة',
+  'dashboard.overdue_amount': 'إجمالي المبالغ المتأخرة',
+  'dashboard.view_report': 'عرض تقرير الذمم',
+  'dashboard.overdue_days_30': 'متأخر أكثر من 30 يوم',
+  'dashboard.overdue_count': 'عدد الفواتير المتأخرة',
+  'dashboard.top_overdue_clients': 'أكبر العملاء المتأخرين',
+  'dashboard.monthly_target': 'هدف الشهر',
+  'dashboard.collection_rate': 'نسبة التحصيل',
 };
 
 export default ar;

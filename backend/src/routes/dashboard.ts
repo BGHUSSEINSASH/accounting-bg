@@ -20,6 +20,27 @@ router.get('/stats', async (_req: AuthRequest, res: Response) => {
     const pendingInvoices = await queryOne("SELECT COUNT(*) as count, COALESCE(SUM(remaining_amount), 0) as total FROM sales_invoices WHERE payment_status IN ('unpaid', 'partial')") as any;
     const activeDoctors = await queryOne("SELECT COUNT(*) as count FROM doctors WHERE is_active = 1") as any;
 
+    // Overdue stats (> 30 days)
+    const overdueStats = await queryOne(`
+      SELECT COUNT(*) as count, COALESCE(SUM(remaining_amount), 0) as amount
+      FROM sales_invoices
+      WHERE payment_status IN ('unpaid', 'partial')
+        AND invoice_date < CURRENT_DATE - INTERVAL '30 days'
+    `) as any;
+
+    const overdueTop = await query(`
+      SELECT c.name as client_name, c.phone,
+             COUNT(si.id) as invoice_count,
+             COALESCE(SUM(si.remaining_amount), 0) as total_overdue
+      FROM sales_invoices si
+      JOIN clients c ON si.client_id = c.id
+      WHERE si.payment_status IN ('unpaid', 'partial')
+        AND si.invoice_date < CURRENT_DATE - INTERVAL '30 days'
+      GROUP BY c.id, c.name, c.phone
+      ORDER BY total_overdue DESC
+      LIMIT 5
+    `);
+
     res.json({
       today_sales: todaySales?.total,
       today_sales_count: todaySales?.count,
@@ -31,7 +52,10 @@ router.get('/stats', async (_req: AuthRequest, res: Response) => {
       today_attendance: todayAttendance?.count,
       pending_invoices: pendingInvoices?.count,
       pending_amount: pendingInvoices?.total,
-      active_doctors: activeDoctors?.count
+      active_doctors: activeDoctors?.count,
+      overdue_count: overdueStats?.count || 0,
+      overdue_amount: overdueStats?.amount || 0,
+      overdue_top: overdueTop || [],
     });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });

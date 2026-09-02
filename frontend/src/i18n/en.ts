@@ -1,4 +1,4 @@
-const en: Record<string, string> = {
+﻿const en: Record<string, string> = {
   // Common
   'common.save': 'Save',
   'common.cancel': 'Cancel',
@@ -1383,7 +1383,32 @@ const en: Record<string, string> = {
   'attendance.camera_error': 'Unable to access camera',
 
   // Pagination
-  'pagination.of': 'of',
+
+  // Aging Report
+  'aging.title': 'Aging Report',
+  'aging.client': 'Client',
+  'aging.phone': 'Phone',
+  'aging.balance': 'Balance',
+  'aging.total': 'Total',
+  'aging.actions': 'Actions',
+  'aging.send_reminder': 'Send Reminder',
+  'aging.call': 'Call',
+  'aging.collection_note': 'Collection Note',
+  'aging.current': 'Current',
+  'aging.days_30': 'Up to 30 days',
+  'aging.days_60': '31-60 days',
+  'aging.days_90': '61-90 days',
+  'aging.over_90': 'Over 90 days',
+
+  // Dashboard overdue
+  'dashboard.overdue_receivables': 'Overdue Receivables',
+  'dashboard.overdue_amount': 'Total Overdue Amount',
+  'dashboard.view_report': 'View Aging Report',
+  'dashboard.overdue_days_30': 'Overdue > 30 days',
+  'dashboard.overdue_count': 'Overdue Invoices Count',
+  'dashboard.top_overdue_clients': 'Top Overdue Clients',
+  'dashboard.monthly_target': 'Monthly Target',
+  'dashboard.collection_rate': 'Collection Rate',
 };
 
 export default en;

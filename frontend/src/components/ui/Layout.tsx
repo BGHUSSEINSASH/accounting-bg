@@ -35,6 +35,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         { path: '/accounting/trial-balance', label: t('accounting.trial_balance') },
         { path: '/accounting/income-statement', label: t('accounting.income_statement') },
         { path: '/accounting/balance-sheet', label: t('accounting.balance_sheet') },
+        { path: '/accounting/aging', label: t('aging.title') },
         { path: '/accounting/fixed-assets', label: t('accounting.fixed_assets') },
         { path: '/accounting/budgets', label: t('accounting.budgets') },
         { path: '/accounting/bank-reconciliation', label: t('accounting.bank_reconciliation') },

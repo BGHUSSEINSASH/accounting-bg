@@ -180,6 +180,9 @@ export interface DashboardStats {
   pending_invoices: number;
   pending_amount: number;
   active_doctors: number;
+  overdue_count?: number;
+  overdue_amount?: number;
+  overdue_top?: Array<{client_name: string; phone: string; invoice_count: number; total_overdue: number}>;
 }
 
 export interface PaginatedResponse<T> {
