@@ -1,250 +1,251 @@
-# نظام المحاسبة والإدارة المتكامل | Integrated Accounting & Management System
+# النظام المحاسبي المتكامل | Integrated Accounting System
 
-## نظرة عامة | Overview
+<div align="center">
 
-نظام محاسبة وإدارة أعمال متكامل مبني بتقنيات حديثة، يدعم اللغة العربية بالكامل ويعمل على الحواسيب والأجهزة المحمولة.
+[![CI/CD](https://github.com/BGHUSSEINSASH/accounting-bg/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/BGHUSSEINSASH/accounting-bg/actions/workflows/ci-cd.yml)
+[![GitHub Stars](https://img.shields.io/github/stars/BGHUSSEINSASH/accounting-bg?style=flat)](https://github.com/BGHUSSEINSASH/accounting-bg/stargazers)
 
-A full-stack Arabic-first accounting and business management system supporting multi-company, multi-warehouse, HR, POS, and comprehensive reporting.
+**نظام محاسبي متكامل مبني على الويب بدعم كامل للغة العربية واتجاه RTL**
+
+*Full-stack web accounting system with complete Arabic RTL support*
+
+[🚀 Deploy to Render](https://render.com/deploy?repo=https://github.com/BGHUSSEINSASH/accounting-bg) | [⚡ Deploy to Vercel](https://vercel.com/new/clone?repository-url=https://github.com/BGHUSSEINSASH/accounting-bg&root=frontend) | [📖 Docs](#deployment)
+
+</div>
 
 ---
 
-## المميزات | Features
+## ✨ الميزات | Features
 
-### المحاسبة | Accounting
-- دليل الحسابات (شجرة هرمية متعددة المستويات)
-- قيود اليومية مع الترحيل التلقائي
-- ميزان المراجعة، الميزانية العمومية، قائمة الدخل
-- التدفق النقدي، التسوية البنكية
-- الموازنات التقديرية، الأصول الثابتة والإهلاك
-- مراكز التكلفة، الأقساط، التسويات
+### 💰 المحاسبة | Accounting
+- شجرة حسابات كاملة (أصول، خصوم، إيرادات، مصروفات)
+- قيود يومية مع التحقق من التوازن
+- ميزانية عمومية وقائمة دخل تلقائية
+- تسوية بنكية مع استيراد كشف الحساب
+- مراكز التكلفة والتحليلات المالية
+- تقرير الذمم المتأخرة (Aging Report) مع إشعارات WhatsApp
 
-### المبيعات | Sales
-- فواتير البيع مع ضريبة القيمة المضافة
-- نقطة البيع (POS) مع طابعة إيصالات
-- عروض الأسعار، إشعارات الدائن، مدفوعات العملاء
-- أهداف المبيعات، سياسات الخصم
-- خريطة مواقع العملاء
+### 🛒 المبيعات | Sales
+- فواتير المبيعات مع حساب الضريبة والخصم
+- نقطة بيع (POS) مع قارئ باركود
+- عروض أسعار قابلة للتحويل لفواتير
+- دفع مختلط (نقد + بطاقة)
+- مندوبي المبيعات وتتبع الأداء والأهداف
+- إشعارات دفع ومدفوعات جزئية
 
-### المخزون | Inventory
-- إدارة الأصناف والمستودعات
-- فواتير المشتريات، أوامر الشراء، مردودات المشتريات
-- جرد المخزون، تحويلات بين المستودعات
-- تنبيهات المخزون المنخفض وانتهاء الصلاحية
-- طباعة الباركود
+### 📦 المخزون | Inventory
+- تتبع الكميات والمستودعات المتعددة
+- تنبيهات الحد الأدنى ومنتهي الصلاحية
+- طرق التكلفة: FIFO/LIFO/متوسط
+- تحويلات بين المستودعات
+- الباركود وطباعة الملصقات
+- دفعات المنتجات (Batches)
 
-### الموارد البشرية | HR
+### 👥 الموارد البشرية | HR
 - إدارة الموظفين والعقود
-- الرواتب والخصومات والبدلات
-- الإجازات والسلف
-- المناوبات والجداول الزمنية
-- مؤشرات الأداء (KPIs)
+- نظام الحضور مع GPS وكاميرا
+- إجازات وأرصدة الإجازات
+- الرواتب والبدلات والخصومات
+- قروض الموظفين ومؤشرات الأداء
 
-### الحضور | Attendance
-- تسجيل الحضور بـ GPS وصورة الموظف
-- سجلات الحضور والانصراف
-- خريطة مواقع الموظفين
-
-### التقارير | Reports
-- تقارير المبيعات والأرباح
-- تقارير الضريبة (ضريبة القيمة المضافة)
-- تقارير الحضور والموازنة
-- تقارير مخصصة، تصدير Excel و PDF
-- تقرير الذمم المتأخرة (Aging Report)
-
-### الإدارة | Admin
-- إدارة شركات متعددة
-- الصلاحيات ومجموعات المستخدمين
-- النسخ الاحتياطي والاستعادة
-- سجل النشاط، سجل الدخول
-- إشعارات تلقائية
+### 📊 التقارير | Reports
+- تقرير الأرباح والخسائر المفصل
+- مقارنة الفترات (شهري/سنوي)
+- تصدير Excel لكل البيانات
+- تقارير مخصصة قابلة للجدولة
+- لوحة تحكم مع KPIs تفاعلية
 
 ---
 
-## التقنيات المستخدمة | Tech Stack
+## 🛠️ التقنيات | Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | React 18 + Vite + TypeScript |
-| Styling | TailwindCSS + Cairo Font |
-| State | Zustand |
-| Backend | Express.js + TypeScript |
-| Database | PostgreSQL |
-| Auth | JWT (jsonwebtoken) |
-| PDF | jsPDF + html2canvas |
-| Excel | xlsx (SheetJS) |
-| Barcode | JsBarcode |
-| Maps | Leaflet.js |
-| Container | Docker + Nginx |
+| Frontend | React 18 + TypeScript + Vite + TailwindCSS |
+| Backend | Node.js + Express + TypeScript |
+| Database | PostgreSQL 16 (Supabase / Render / Neon) |
+| Auth | JWT + Refresh Tokens |
+| i18n | Arabic (RTL) + English + Kurdish |
+| Mobile | React Native (Expo) |
+| CI/CD | GitHub Actions |
+| Docker | Multi-stage build with Nginx |
 
 ---
 
-## إعداد بيئة التطوير | Local Development Setup
+## 🚀 النشر السريع | Quick Deploy
 
-### المتطلبات | Prerequisites
-- Node.js 18+
-- PostgreSQL 14+
-- npm or yarn
+### Option 1: Render (Backend) + Vercel (Frontend) — مجاني تماماً
 
-### الخطوات | Steps
+**الخطوة 1: نشر Backend على Render**
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/BGHUSSEINSASH/accounting-bg)
+
+> أو يدوياً:
+> 1. اذهب إلى [render.com](https://render.com) → New Web Service
+> 2. Root Directory: `backend`
+> 3. Build: `npm install --ignore-scripts && npm run build`
+> 4. Start: `node dist/app.js`
+
+**الخطوة 2: إعداد قاعدة البيانات**
+
+1. أنشئ PostgreSQL database على [supabase.com](https://supabase.com)
+2. في SQL Editor، شغّل محتوى: `database/schema.postgresql.sql`
+3. أضف `DATABASE_URL` كـ Environment Variable في Render
+
+**الخطوة 3: نشر Frontend على Vercel**
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/BGHUSSEINSASH/accounting-bg&root=frontend)
+
+> أضف Environment Variable:
+> `VITE_API_BASE_URL` = `https://your-backend.onrender.com/api`
+
+### Option 2: Docker Compose (محلي أو VPS)
 
 ```bash
-# 1. Clone the repository
-git clone <repo-url>
-cd accounting-system
+git clone https://github.com/BGHUSSEINSASH/accounting-bg.git
+cd accounting-bg
 
-# 2. Setup backend
+# إنشاء ملف البيئة
+cp backend/.env.production backend/.env
+# عدّل DATABASE_URL و JWT_SECRET في .env
+
+docker-compose up -d
+# الموقع: http://localhost:80
+```
+
+### Option 3: النشر الآلي بـ Script
+
+```bash
+# Windows PowerShell
+.\setup-online.ps1
+
+# أو Node.js
+node deploy-full.js --supabase-token=xxx --render-token=xxx --vercel-token=xxx
+```
+
+---
+
+## 💻 التطوير المحلي | Local Development
+
+### المتطلبات
+- Node.js 20+
+- PostgreSQL 16+ (أو Supabase/Neon مجاناً)
+- Git
+
+### الخطوات
+
+```bash
+# 1. استنساخ المشروع
+git clone https://github.com/BGHUSSEINSASH/accounting-bg.git
+cd accounting-bg
+
+# 2. إعداد Backend
 cd backend
 cp .env.example .env
-# Edit .env with your PostgreSQL credentials
-npm install
+# عدّل DATABASE_URL في .env
+npm install --ignore-scripts
 npm run dev
 
-# 3. Setup frontend (in a new terminal)
-cd frontend
+# 3. إعداد Frontend (terminal آخر)
+cd ../frontend
 npm install
 npm run dev
+# الموقع: http://localhost:5173
 ```
 
-### متغيرات البيئة | Environment Variables (backend/.env)
+### ملف `.env` للبيئة المحلية
 
 ```env
-# Database
-DATABASE_URL=postgresql://user:password@localhost:5432/accounting_db
-
-# JWT
-JWT_SECRET=your-very-secure-secret-key-here
-
-# Server
 PORT=3000
+DATABASE_URL=postgresql://user:password@localhost:5432/accounting
+JWT_SECRET=any-random-secret-key
+REFRESH_SECRET=another-random-secret-key
+NODE_ENV=development
 CORS_ORIGIN=http://localhost:5173
-
-# Optional: Rate limiting
-RATE_LIMIT_MAX=5000
 ```
 
 ---
 
-## نشر Docker | Docker Deployment
+## 🔐 بيانات الدخول الافتراضية | Default Credentials
 
-```bash
-# Build and run with Docker Compose
-docker-compose up -d
+> ⚠️ **تحذير**: غيّر كلمة المرور فوراً في الإنتاج!
 
-# View logs
-docker-compose logs -f
-
-# Stop
-docker-compose down
-```
-
-The `docker-compose.yml` starts:
-- PostgreSQL database
-- Backend API (port 3000)
-- Nginx reverse proxy (port 80/443)
+| المستخدم | كلمة المرور | الصلاحية |
+|---------|------------|---------|
+| admin | 123456 | مدير النظام |
+| mohammed | 123456 | مدير مبيعات |
+| sara | 123456 | محاسب |
+| ali_sale | 123456 | مندوب مبيعات |
+| fatima | 123456 | مندوبة مبيعات |
 
 ---
 
-## نشر سحابي | Cloud Deployment
-
-### Render + Supabase (موصى به | Recommended)
-
-1. **Database**: Create a free PostgreSQL instance on [Supabase](https://supabase.com)
-   - Copy the connection string (URI format)
-
-2. **Backend on Render**:
-   - New → Web Service → Connect your repo
-   - Root Directory: `backend`
-   - Build Command: `npm install && npm run build`
-   - Start Command: `node dist/server.js`
-   - Environment variables:
-     ```
-     DATABASE_URL=<supabase connection string>
-     JWT_SECRET=<random 64-char string>
-     NODE_ENV=production
-     ```
-
-3. **Frontend on Vercel**:
-   - Import repo → Set root to `frontend`
-   - Environment variable: `VITE_API_URL=https://your-render-backend.onrender.com/api`
-   - Build command: `npm run build`
-   - Output directory: `dist`
-
-### render.yaml (Auto-deploy)
-
-The `render.yaml` in the project root is pre-configured for Render Blueprint deployment.
-
----
-
-## بيانات الدخول الافتراضية | Default Credentials
-
-> **تحذير | Warning**: Change these immediately after first login.
-
-| Field | Value |
-|-------|-------|
-| Username | `admin` |
-| Password | `admin123` |
-
----
-
-## API Documentation
-
-After running the backend, visit:
-```
-http://localhost:3000/api/docs
-```
-
-Swagger UI is available with full endpoint documentation.
-
-### Key Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/auth/login` | Login |
-| GET | `/api/accounts` | Chart of accounts |
-| GET | `/api/sales` | Sales invoices |
-| GET | `/api/clients` | Clients list |
-| GET | `/api/items` | Items/inventory |
-| GET | `/api/reports/export/clients/excel` | Export clients to Excel |
-| GET | `/api/reports/export/items/excel` | Export items to Excel |
-| GET | `/api/reports/export/sales/excel?from=&to=` | Export sales to Excel |
-| GET | `/api/barcode-print/items` | List items for barcode printing |
-| POST | `/api/barcode-print/generate` | Generate printable barcode HTML |
-| GET | `/api/health` | Health check |
-
----
-
-## هيكل المشروع | Project Structure
+## 📁 هيكل المشروع | Project Structure
 
 ```
-├── backend/
+accounting-bg/
+├── backend/                 # Express API
 │   ├── src/
-│   │   ├── app.ts          # Express app entry
-│   │   ├── config/
-│   │   │   └── database.ts # PostgreSQL pool
-│   │   ├── middleware/
-│   │   │   ├── auth.ts     # JWT authentication
-│   │   │   └── ...
-│   │   └── routes/         # API route handlers
-│   └── package.json
-├── frontend/
+│   │   ├── routes/         # 88 API endpoints
+│   │   ├── config/         # Database (PostgreSQL)
+│   │   ├── middleware/      # Auth, i18n, errors
+│   │   ├── services/        # Business logic
+│   │   └── utils/           # Helpers
+│   └── dist/               # Compiled JS
+├── frontend/               # React App
 │   ├── src/
-│   │   ├── App.tsx
-│   │   ├── components/
-│   │   ├── pages/
-│   │   ├── i18n/ar.ts      # Arabic translations
-│   │   └── services/api.ts
-│   └── package.json
-├── docker-compose.yml
-├── nginx/
-└── render.yaml
+│   │   ├── pages/          # 68 pages
+│   │   ├── components/      # Shared components
+│   │   ├── i18n/           # Arabic/English/Kurdish
+│   │   ├── services/        # API client
+│   │   └── utils/           # Format, helpers
+│   └── dist/               # Built static files
+├── mobile/                 # React Native (Expo)
+├── database/               # PostgreSQL schema
+│   └── schema.postgresql.sql
+├── docker-compose.yml      # Full stack Docker
+├── render.yaml             # Render Blueprint
+└── DEPLOYMENT.md           # تعليمات النشر
 ```
 
 ---
 
-## الدعم | Support
+## 📡 API Reference
 
-For issues and feedback, please open a GitHub issue.
+| Endpoint | Method | Description |
+|---------|--------|-------------|
+| `/api/auth/login` | POST | تسجيل الدخول |
+| `/api/dashboard/stats` | GET | إحصائيات لوحة التحكم |
+| `/api/clients` | GET/POST/PUT/DELETE | إدارة العملاء |
+| `/api/sales` | GET/POST | فواتير المبيعات |
+| `/api/items` | GET/POST/PUT/DELETE | إدارة الأصناف |
+| `/api/reports/income-statement-detailed` | GET | قائمة الدخل المفصلة |
+| `/api/reports/export/sales/excel` | GET | تصدير Excel |
+| `/api/whatsapp/overdue-preview` | GET | الذمم المتأخرة |
+| `/api/health` | GET | حالة الخادم |
+
+> الوثائق الكاملة: `http://localhost:3000/api-docs` (Swagger UI)
 
 ---
 
-*نظام المحاسبة والإدارة المتكامل — مبني بـ ❤️ للشركات العربية*
+## 🤝 المساهمة | Contributing
+
+1. Fork المشروع
+2. أنشئ branch: `git checkout -b feature/amazing-feature`
+3. Commit: `git commit -m 'feat: add amazing feature'`
+4. Push: `git push origin feature/amazing-feature`
+5. افتح Pull Request
+
+---
+
+## 📄 الترخيص | License
+
+MIT License — استخدم حراً مع الإشارة للمصدر
+
+---
+
+<div align="center">
+
+صُنع بـ ❤️ للمجتمع العربي | Made with ❤️ for the Arabic community
+
+</div>
