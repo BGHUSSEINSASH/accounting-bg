@@ -80,6 +80,57 @@ export function formatNumber(value: number): string {
   return new Intl.NumberFormat(getLocale()).format(value);
 }
 
+export function formatNumberAr(value: number): string {
+  const lang = getLanguage();
+  if (lang === 'ar' || lang === 'ku') {
+    return new Intl.NumberFormat('ar-IQ', { useGrouping: true }).format(value);
+  }
+  return new Intl.NumberFormat('en-US', { useGrouping: true }).format(value);
+}
+
+// Arabic number words for IQD (basic implementation)
+const ones = ['', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثمانية', 'تسعة',
+  'عشرة', 'أحد عشر', 'اثنا عشر', 'ثلاثة عشر', 'أربعة عشر', 'خمسة عشر', 'ستة عشر',
+  'سبعة عشر', 'ثمانية عشر', 'تسعة عشر'];
+const tens = ['', '', 'عشرون', 'ثلاثون', 'أربعون', 'خمسون', 'ستون', 'سبعون', 'ثمانون', 'تسعون'];
+const hundreds = ['', 'مائة', 'مئتان', 'ثلاثمائة', 'أربعمائة', 'خمسمائة', 'ستمائة', 'سبعمائة', 'ثمانمائة', 'تسعمائة'];
+
+function threeDigits(n: number): string {
+  if (n === 0) return '';
+  const h = Math.floor(n / 100);
+  const t = Math.floor((n % 100) / 10);
+  const o = n % 10;
+  let result = '';
+  if (h > 0) result += hundreds[h];
+  if (n % 100 > 0) {
+    if (result) result += ' و';
+    if (n % 100 < 20) {
+      result += ones[n % 100];
+    } else {
+      if (o > 0) result += ones[o] + ' و';
+      result += tens[t];
+    }
+  }
+  return result;
+}
+
+export function tafqeer(amount: number): string {
+  const n = Math.floor(Math.abs(amount));
+  if (n === 0) return 'صفر دينار عراقي';
+  const billions = Math.floor(n / 1_000_000_000);
+  const millions = Math.floor((n % 1_000_000_000) / 1_000_000);
+  const thousands = Math.floor((n % 1_000_000) / 1_000);
+  const remainder = n % 1_000;
+  const parts: string[] = [];
+  if (billions > 0) parts.push(threeDigits(billions) + ' مليار');
+  if (millions > 0) parts.push(threeDigits(millions) + ' مليون');
+  if (thousands === 1) parts.push('ألف');
+  else if (thousands === 2) parts.push('ألفان');
+  else if (thousands > 0) parts.push(threeDigits(thousands) + ' آلاف');
+  if (remainder > 0) parts.push(threeDigits(remainder));
+  return (amount < 0 ? 'سالب ' : '') + parts.join(' و') + ' دينار عراقي';
+}
+
 export function getStatusBadgeClass(status: string): string {
   const map: Record<string, string> = {
     paid: 'badge-success',

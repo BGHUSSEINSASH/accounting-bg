@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertCircle, Phone, MessageCircle, Download, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
+import { AlertCircle, Phone, MessageCircle, RefreshCw, ChevronDown, ChevronUp, Printer } from 'lucide-react';
 import api from '../../services/api';
 import { formatCurrency } from '../../utils/format';
 import { useTranslation } from '../../i18n/context';
@@ -121,12 +121,28 @@ export default function AgingReportPage() {
 
   return (
     <div className="space-y-6">
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          .aging-print-area, .aging-print-area * { visibility: visible; }
+          .aging-print-area { position: absolute; inset: 0; }
+          .print\\:hidden { display: none !important; }
+        }
+      `}</style>
+      <div className="aging-print-area space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-gray-900">{t('aging.title')}</h1>
         <button onClick={fetchData} className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm transition-colors">
           <RefreshCw className="w-4 h-4" />
           تحديث
+        </button>
+        <button
+          onClick={() => window.print()}
+          className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm transition-colors print:hidden dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+        >
+          <Printer className="w-4 h-4" />
+          طباعة
         </button>
       </div>
 
@@ -274,6 +290,7 @@ export default function AgingReportPage() {
             </tbody>
           </table>
         </div>
+      </div>
       </div>
     </div>
   );

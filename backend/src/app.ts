@@ -75,6 +75,8 @@ import tileProxyRoutes from './routes/tile_proxy';
 import cloudSyncRoutes from './routes/cloud_sync';
 import { logCloudProviderWarning } from './services/cloudStorage';
 import { syncLocalFiles } from './services/cloudSync';
+import autoNotificationsRoutes, { runAutoNotifications } from './routes/auto_notifications';
+import searchRoutes from './routes/search';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -237,6 +239,8 @@ app.use('/api/cost-centers', costCentersRoutes);
 app.use('/api/discount-policies', discountPoliciesRoutes);
 app.use('/api', tileProxyRoutes);
 app.use('/api/cloud-sync', cloudSyncRoutes);
+app.use('/api/auto-notifications', autoNotificationsRoutes);
+app.use('/api/search', searchRoutes);
 
 // Health check
 app.get('/api/health', async (_req, res) => {
@@ -284,6 +288,11 @@ if (process.env.CLOUD_PROVIDER && process.env.CLOUD_PROVIDER !== 'none') {
     syncLocalFiles().catch((err) => logger.error('Scheduled cloud sync failed', { error: err.message }));
   }, intervalMs);
 }
+
+// Hourly auto-notifications scheduler
+setInterval(() => {
+  runAutoNotifications().catch((err) => logger.error('Scheduled auto-notifications failed', { error: (err as Error).message }));
+}, 60 * 60 * 1000);
 
 // SPA fallback - serve index.html for non-API routes
 if (fs.existsSync(frontendDist)) {

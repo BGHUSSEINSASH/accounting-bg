@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, Minus, Trash2, Printer, CreditCard, Banknote, Smartphone } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Search, Plus, Minus, Trash2, Printer, CreditCard, Banknote, Smartphone, Pause, Play, X, Delete } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 import { formatCurrency } from '../../utils/format';
@@ -13,6 +13,29 @@ interface CartItem {
   unit_price: number;
   discount: number;
   current_quantity: number;
+}
+
+interface HeldSale {
+  id: string;
+  cart: CartItem[];
+  clientId: number | '';
+  discount: number;
+  tax: number;
+  timestamp: number;
+}
+
+const HELD_SALES_KEY = 'pos_held_sales';
+
+function loadHeldSales(): HeldSale[] {
+  try {
+    return JSON.parse(localStorage.getItem(HELD_SALES_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function saveHeldSales(sales: HeldSale[]) {
+  localStorage.setItem(HELD_SALES_KEY, JSON.stringify(sales));
 }
 
 export default function POSPage() {
@@ -32,6 +55,24 @@ export default function POSPage() {
   const [cardholderName, setCardholderName] = useState('');
   const [transferReference, setTransferReference] = useState('');
 
+  // Split payment
+  const [splitPayment, setSplitPayment] = useState(false);
+  const [cashAmount, setCashAmount] = useState(0);
+  const [cardAmount, setCardAmount] = useState(0);
+
+  // Hold / resume
+  const [heldSales, setHeldSales] = useState<HeldSale[]>(loadHeldSales);
+  const [showHeld, setShowHeld] = useState(false);
+
+  // Numeric keypad
+  const [keypadTarget, setKeypadTarget] = useState<'paid' | 'cash' | 'card' | null>(null);
+  const [keypadValue, setKeypadValue] = useState('');
+
+  // Barcode scanner buffer
+  const barcodeRef = useRef('');
+  const barcodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const barcodeInputRef = useRef<HTMLInputElement>(null);
+
   const currentUser = authStore.getUser();
 
   const invoiceNumber = useMemo(() => {
@@ -50,6 +91,61 @@ export default function POSPage() {
       toast.error(t('pos.load_error'));
     }).finally(() => setLoading(false));
   }, []);
+
+  // Auto-focus barcode input
+  useEffect(() => {
+    barcodeInputRef.current?.focus();
+  }, []);
+
+  const addToCartByBarcode = useCallback((barcode: string) => {
+    const item = items.find((i: any) =>
+      i.barcode === barcode || i.code === barcode
+    );
+    if (!item) {
+      toast.error(`باركود غير موجود: ${barcode}`);
+      return;
+    }
+    if (item.current_quantity <= 0) {
+      toast.error(t('pos.no_stock'));
+      return;
+    }
+    setCart(prev => {
+      const existing = prev.find(c => c.item_id === item.id);
+      if (existing) {
+        return prev.map(c =>
+          c.item_id === item.id
+            ? { ...c, quantity: Math.min(c.quantity + 1, item.current_quantity) }
+            : c
+        );
+      }
+      return [...prev, {
+        item_id: item.id,
+        name: item.name,
+        quantity: 1,
+        unit_price: item.selling_price,
+        discount: 0,
+        current_quantity: item.current_quantity,
+      }];
+    });
+    toast.success(`تمت إضافة: ${item.name}`);
+  }, [items, t]);
+
+  const handleBarcodeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      const val = barcodeRef.current.trim();
+      if (val) {
+        addToCartByBarcode(val);
+        barcodeRef.current = '';
+        (e.target as HTMLInputElement).value = '';
+      }
+      return;
+    }
+    barcodeRef.current += e.key;
+    if (barcodeTimerRef.current) clearTimeout(barcodeTimerRef.current);
+    barcodeTimerRef.current = setTimeout(() => {
+      barcodeRef.current = '';
+    }, 100);
+  };
 
   const filteredItems = useMemo(() => {
     if (!search) return items;
@@ -102,6 +198,16 @@ export default function POSPage() {
     );
   };
 
+  const setQuantityDirect = (itemId: number, qty: number) => {
+    setCart(prev =>
+      prev.map(c => {
+        if (c.item_id !== itemId) return c;
+        if (qty < 1 || qty > c.current_quantity) return c;
+        return { ...c, quantity: qty };
+      })
+    );
+  };
+
   const removeFromCart = (itemId: number) => {
     setCart(prev => prev.filter(c => c.item_id !== itemId));
   };
@@ -127,8 +233,9 @@ export default function POSPage() {
   }, [afterDiscount, tax]);
 
   const total = afterDiscount + taxAmount;
-  const remaining = total - paidAmount;
-  const change = paidAmount > total ? paidAmount - total : 0;
+  const effectivePaid = splitPayment ? cashAmount + cardAmount : paidAmount;
+  const remaining = total - effectivePaid;
+  const change = effectivePaid > total ? effectivePaid - total : 0;
 
   const clearCart = () => {
     setCart([]);
@@ -140,6 +247,79 @@ export default function POSPage() {
     setCardNumber('');
     setCardholderName('');
     setTransferReference('');
+    setSplitPayment(false);
+    setCashAmount(0);
+    setCardAmount(0);
+    setKeypadTarget(null);
+  };
+
+  // Hold current sale
+  const holdSale = () => {
+    if (cart.length === 0) {
+      toast.error('السلة فارغة');
+      return;
+    }
+    const newHeld: HeldSale = {
+      id: Date.now().toString(),
+      cart,
+      clientId,
+      discount,
+      tax,
+      timestamp: Date.now(),
+    };
+    const updated = [...heldSales, newHeld];
+    setHeldSales(updated);
+    saveHeldSales(updated);
+    clearCart();
+    toast.success('تم حفظ البيع مؤقتاً');
+  };
+
+  // Resume a held sale
+  const resumeSale = (sale: HeldSale) => {
+    if (cart.length > 0 && !window.confirm('السلة الحالية ليست فارغة. هل تريد الاستبدال؟')) return;
+    setCart(sale.cart);
+    setClientId(sale.clientId);
+    setDiscount(sale.discount);
+    setTax(sale.tax);
+    const updated = heldSales.filter(h => h.id !== sale.id);
+    setHeldSales(updated);
+    saveHeldSales(updated);
+    setShowHeld(false);
+    toast.success('تم استئناف البيع');
+  };
+
+  const deleteHeld = (id: string) => {
+    const updated = heldSales.filter(h => h.id !== id);
+    setHeldSales(updated);
+    saveHeldSales(updated);
+  };
+
+  // Numeric keypad
+  const keypadPress = (key: string) => {
+    setKeypadValue(prev => {
+      let next = prev;
+      if (key === 'DEL') {
+        next = prev.slice(0, -1);
+      } else if (key === 'C') {
+        next = '';
+      } else if (key === '.' && prev.includes('.')) {
+        return prev;
+      } else {
+        next = prev + key;
+      }
+      const num = parseFloat(next) || 0;
+      if (keypadTarget === 'paid') setPaidAmount(num);
+      if (keypadTarget === 'cash') setCashAmount(num);
+      if (keypadTarget === 'card') setCardAmount(num);
+      return next;
+    });
+  };
+
+  const openKeypad = (target: 'paid' | 'cash' | 'card') => {
+    setKeypadTarget(target);
+    if (target === 'paid') setKeypadValue(paidAmount ? String(paidAmount) : '');
+    if (target === 'cash') setKeypadValue(cashAmount ? String(cashAmount) : '');
+    if (target === 'card') setKeypadValue(cardAmount ? String(cardAmount) : '');
   };
 
   const handlePrint = () => {
@@ -151,7 +331,7 @@ export default function POSPage() {
       toast.error(t('pos.add_items_first'));
       return;
     }
-    if (paidAmount <= 0 && paymentMethod !== 'credit') {
+    if (effectivePaid <= 0 && paymentMethod !== 'credit') {
       toast.error(t('pos.enter_amount'));
       return;
     }
@@ -169,11 +349,15 @@ export default function POSPage() {
         })),
         discount,
         tax,
-        paid_amount: paidAmount,
-        payment_method: paymentMethod,
+        paid_amount: effectivePaid,
+        payment_method: splitPayment ? 'split' : paymentMethod,
         sales_rep_id: currentUser?.id || null,
       };
-      if (paymentMethod === 'card') {
+      if (splitPayment) {
+        payload.cash_amount = cashAmount;
+        payload.card_amount = cardAmount;
+      }
+      if (paymentMethod === 'card' && !splitPayment) {
         payload.card_number = cardNumber || null;
         payload.cardholder_name = cardholderName || null;
       }
@@ -191,16 +375,24 @@ export default function POSPage() {
     }
   };
 
-  const paymentIcons: Record<string, React.ReactNode> = {
-    cash: <Banknote className="w-4 h-4" />,
-    card: <CreditCard className="w-4 h-4" />,
-    credit: <Smartphone className="w-4 h-4" />,
-    transfer: <Smartphone className="w-4 h-4" />,
-  };
+  const keypadKeys = ['7','8','9','4','5','6','1','2','3','.',  '0','DEL'];
 
   return (
     <div className="h-[calc(100vh-4rem)] flex flex-col lg:flex-row gap-4 print:h-auto">
+      {/* Left: Item grid */}
       <div className="flex-1 flex flex-col gap-4 overflow-hidden">
+        {/* Hidden barcode input - always focused */}
+        <input
+          ref={barcodeInputRef}
+          type="text"
+          className="sr-only"
+          aria-label="barcode-scanner"
+          onKeyDown={handleBarcodeKeyDown}
+          onBlur={() => setTimeout(() => barcodeInputRef.current?.focus(), 200)}
+          readOnly={false}
+          tabIndex={-1}
+        />
+
         <div className="card shrink-0">
           <div className="relative">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -246,11 +438,36 @@ export default function POSPage() {
         </div>
       </div>
 
-      <div className="w-full lg:w-96 xl:w-[420px] flex flex-col gap-4 print:w-full print:max-w-none">
+      {/* Right: Cart & Payment */}
+      <div className="w-full lg:w-96 xl:w-[420px] flex flex-col gap-4 print:w-full print:max-w-none overflow-y-auto">
+        {/* Invoice header */}
         <div className="card shrink-0 dark:bg-gray-800 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-bold dark:text-white">{t('pos.sale_invoice')}</h2>
-            <span className="text-sm text-gray-500 dark:text-gray-400 font-mono">{invoiceNumber}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500 dark:text-gray-400 font-mono">{invoiceNumber}</span>
+              {/* Hold button */}
+              <button
+                onClick={holdSale}
+                title="احتفظ بالبيع"
+                className="p-1.5 bg-amber-50 text-amber-600 border border-amber-200 rounded-lg hover:bg-amber-100 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-400"
+              >
+                <Pause className="w-4 h-4" />
+              </button>
+              {/* Resume button */}
+              {heldSales.length > 0 && (
+                <button
+                  onClick={() => setShowHeld(true)}
+                  title="استئناف بيع محفوظ"
+                  className="p-1.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-700 dark:text-blue-400 relative"
+                >
+                  <Play className="w-4 h-4" />
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-600 text-white text-xs rounded-full flex items-center justify-center">
+                    {heldSales.length}
+                  </span>
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="mb-3 flex gap-2">
@@ -273,11 +490,12 @@ export default function POSPage() {
             </button>
           </div>
 
+          {/* Cart items */}
           <div className="max-h-64 overflow-y-auto space-y-2">
             {cart.length === 0 ? (
               <p className="text-center text-gray-400 dark:text-gray-500 py-8 text-sm">{t('pos.no_items_in_cart')}</p>
             ) : (
-              cart.map((c, idx) => (
+              cart.map((c) => (
                 <div key={c.item_id} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="font-medium text-sm dark:text-white">{c.name}</span>
@@ -296,7 +514,14 @@ export default function POSPage() {
                       >
                         <Plus className="w-4 h-4" />
                       </button>
-                      <span className="w-8 text-center font-bold text-sm dark:text-white">{c.quantity}</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={c.current_quantity}
+                        value={c.quantity}
+                        onChange={e => setQuantityDirect(c.item_id, parseInt(e.target.value) || 1)}
+                        className="w-12 text-center font-bold text-sm dark:text-white bg-white dark:bg-gray-600 border border-gray-200 dark:border-gray-500 rounded py-0.5"
+                      />
                       <button
                         onClick={() => updateQuantity(c.item_id, -1)}
                         disabled={c.quantity <= 1}
@@ -333,6 +558,7 @@ export default function POSPage() {
           </div>
         </div>
 
+        {/* Totals */}
         <div className="card dark:bg-gray-800 dark:border-gray-700">
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
@@ -384,48 +610,142 @@ export default function POSPage() {
           </div>
         </div>
 
+        {/* Payment */}
         <div className="card dark:bg-gray-800 dark:border-gray-700">
           <div className="space-y-3">
+            {/* Payment method */}
             <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t('pos.payment_method')}</label>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { value: 'cash', label: t('pos.cash'), icon: <Banknote className="w-4 h-4" /> },
-                  { value: 'card', label: t('pos.card'), icon: <CreditCard className="w-4 h-4" /> },
-                  { value: 'credit', label: t('pos.credit'), icon: <Smartphone className="w-4 h-4" /> },
-                  { value: 'transfer', label: t('pos.transfer'), icon: <Smartphone className="w-4 h-4" /> },
-                ].map(pm => (
-                  <button
-                    key={pm.value}
-                    onClick={() => setPaymentMethod(pm.value)}
-                    className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border text-sm font-medium transition-all ${
-                      paymentMethod === pm.value
-                        ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:border-primary-500 dark:text-primary-300'
-                        : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600'
-                    }`}
-                  >
-                    {pm.icon}
-                    {pm.label}
-                  </button>
-                ))}
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400">{t('pos.payment_method')}</label>
+                {/* Split payment toggle */}
+                <button
+                  onClick={() => { setSplitPayment(p => !p); setCashAmount(0); setCardAmount(0); setPaidAmount(0); }}
+                  className={`text-xs px-2 py-0.5 rounded border transition-colors ${splitPayment ? 'bg-purple-100 text-purple-700 border-purple-300 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-700' : 'border-gray-200 text-gray-500 dark:border-gray-600 dark:text-gray-400'}`}
+                >
+                  دفع مختلط
+                </button>
               </div>
+              {!splitPayment && (
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { value: 'cash', label: t('pos.cash'), icon: <Banknote className="w-4 h-4" /> },
+                    { value: 'card', label: t('pos.card'), icon: <CreditCard className="w-4 h-4" /> },
+                    { value: 'credit', label: t('pos.credit'), icon: <Smartphone className="w-4 h-4" /> },
+                    { value: 'transfer', label: t('pos.transfer'), icon: <Smartphone className="w-4 h-4" /> },
+                  ].map(pm => (
+                    <button
+                      key={pm.value}
+                      onClick={() => setPaymentMethod(pm.value)}
+                      className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border text-sm font-medium transition-all ${
+                        paymentMethod === pm.value
+                          ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:border-primary-500 dark:text-primary-300'
+                          : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      {pm.icon}
+                      {pm.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
-            <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t('pos.paid_amount')}</label>
-              <input
-                type="number"
-                min={0}
-                step={0.01}
-                value={paidAmount || ''}
-                onChange={e => setPaidAmount(parseFloat(e.target.value) || 0)}
-                className="input-field text-lg py-3 font-mono dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                placeholder="0.00"
-                dir="ltr"
-              />
-            </div>
+            {/* Split payment fields */}
+            {splitPayment && (
+              <div className="space-y-2 bg-purple-50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-800 rounded-lg p-3">
+                <p className="text-xs font-semibold text-purple-700 dark:text-purple-300">دفع مختلط (نقد + بطاقة)</p>
+                <div className="flex items-center gap-2">
+                  <Banknote className="w-4 h-4 text-green-600" />
+                  <label className="text-xs text-gray-600 dark:text-gray-400 w-12 shrink-0">نقد</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={cashAmount || ''}
+                    onChange={e => setCashAmount(parseFloat(e.target.value) || 0)}
+                    onFocus={() => openKeypad('cash')}
+                    className="input-field text-sm py-1.5 font-mono flex-1 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    placeholder="0.00"
+                    dir="ltr"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-blue-600" />
+                  <label className="text-xs text-gray-600 dark:text-gray-400 w-12 shrink-0">بطاقة</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={cardAmount || ''}
+                    onChange={e => setCardAmount(parseFloat(e.target.value) || 0)}
+                    onFocus={() => openKeypad('card')}
+                    className="input-field text-sm py-1.5 font-mono flex-1 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    placeholder="0.00"
+                    dir="ltr"
+                  />
+                </div>
+                <div className="flex justify-between text-xs font-semibold text-purple-700 dark:text-purple-300 border-t border-purple-100 dark:border-purple-700 pt-1.5">
+                  <span>الإجمالي المدفوع</span>
+                  <span className="font-mono">{formatCurrency(cashAmount + cardAmount)}</span>
+                </div>
+              </div>
+            )}
 
-            {paymentMethod === 'card' && (
+            {/* Single payment amount */}
+            {!splitPayment && (
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t('pos.paid_amount')}</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={paidAmount || ''}
+                  onChange={e => setPaidAmount(parseFloat(e.target.value) || 0)}
+                  onFocus={() => openKeypad('paid')}
+                  className="input-field text-lg py-3 font-mono dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  placeholder="0.00"
+                  dir="ltr"
+                />
+              </div>
+            )}
+
+            {/* Numeric keypad */}
+            {keypadTarget && (
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">لوحة المفاتيح</span>
+                  <button onClick={() => setKeypadTarget(null)} className="text-gray-400 hover:text-gray-600">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="text-left text-lg font-mono font-bold text-gray-800 dark:text-white bg-white dark:bg-gray-600 border border-gray-200 dark:border-gray-500 rounded px-3 py-1.5 mb-2">
+                  {keypadValue || '0'}
+                </div>
+                <div className="grid grid-cols-3 gap-1">
+                  {keypadKeys.map(k => (
+                    <button
+                      key={k}
+                      onClick={() => keypadPress(k)}
+                      className={`py-2 rounded text-sm font-medium transition-colors ${
+                        k === 'DEL' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 hover:bg-red-200 col-span-1' :
+                        k === 'C' ? 'bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-300 hover:bg-gray-300' :
+                        'bg-white text-gray-800 dark:bg-gray-600 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-500 border border-gray-200 dark:border-gray-500'
+                      }`}
+                    >
+                      {k === 'DEL' ? <Delete className="w-4 h-4 mx-auto" /> : k}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => keypadPress('C')}
+                    className="py-2 rounded text-sm font-medium bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-300 hover:bg-gray-300 col-span-3"
+                  >
+                    مسح
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {paymentMethod === 'card' && !splitPayment && (
               <div className="space-y-2 border-t border-gray-100 dark:border-gray-700 pt-2">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t('pos.card_number')}</label>
@@ -437,16 +757,16 @@ export default function POSPage() {
                 </div>
               </div>
             )}
-            {paymentMethod === 'transfer' && (
+            {paymentMethod === 'transfer' && !splitPayment && (
               <div className="border-t border-gray-100 dark:border-gray-700 pt-2">
                 <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t('pos.transfer_reference')}</label>
                 <input type="text" value={transferReference} onChange={e => setTransferReference(e.target.value)} className="input-field text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder={t('pos.transfer_reference_placeholder')} />
               </div>
             )}
-            {paidAmount > 0 && (
+            {effectivePaid > 0 && (
               <div className="space-y-1">
                 <div className={`flex justify-between text-sm ${remaining < 0 ? 'text-red-500' : 'text-gray-600 dark:text-gray-400'}`}>
-                  <span>{remaining < 0 ? t('pos.remaining') : t('pos.remaining')}</span>
+                  <span>{t('pos.remaining')}</span>
                   <span className="font-mono">{formatCurrency(Math.abs(remaining))}</span>
                 </div>
                 {change > 0 && (
@@ -484,6 +804,48 @@ export default function POSPage() {
           </div>
         </div>
       </div>
+
+      {/* Held Sales Modal */}
+      {showHeld && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md">
+            <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700">
+              <h3 className="text-lg font-bold dark:text-white">البيوع المحفوظة</h3>
+              <button onClick={() => setShowHeld(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 space-y-3 max-h-80 overflow-y-auto">
+              {heldSales.length === 0 ? (
+                <p className="text-center text-gray-400 py-4">لا توجد بيوع محفوظة</p>
+              ) : heldSales.map(sale => (
+                <div key={sale.id} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 flex items-center justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium dark:text-white">{sale.cart.length} منتج</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {new Date(sale.timestamp).toLocaleTimeString('ar-IQ')}
+                    </p>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <button
+                      onClick={() => resumeSale(sale)}
+                      className="px-3 py-1.5 bg-primary-600 text-white text-xs rounded-lg hover:bg-primary-700"
+                    >
+                      استئناف
+                    </button>
+                    <button
+                      onClick={() => deleteHeld(sale.id)}
+                      className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
