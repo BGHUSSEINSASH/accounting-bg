@@ -1,4 +1,4 @@
-name: CI/CD - Build & Deploy
+name: CI/CD Build and Deploy
 
 on:
   push:
@@ -64,29 +64,34 @@ jobs:
           VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
 
   # ================================================
-  # Deploy to Render (Backend) - on push to main only
+  # Deploy to Render - on push to main only
   # ================================================
   deploy-backend:
     name: Deploy Backend to Render
     needs: [backend, frontend]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
 
     steps:
       - name: Trigger Render Deploy
-        if: ${{ secrets.RENDER_DEPLOY_HOOK != '' }}
         run: |
-          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
-          echo "Render deploy triggered"
+          if [ -n "$RENDER_HOOK" ]; then
+            curl -X POST "$RENDER_HOOK"
+            echo "Render deploy triggered"
+          else
+            echo "No RENDER_DEPLOY_HOOK configured - skipping"
+          fi
+        env:
+          RENDER_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
 
   # ================================================
-  # Deploy to Vercel (Frontend) - on push to main only
+  # Deploy to Vercel - on push to main only
   # ================================================
   deploy-frontend:
     name: Deploy Frontend to Vercel
     needs: [backend, frontend]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
 
     steps:
       - uses: actions/checkout@v4
@@ -100,10 +105,14 @@ jobs:
         run: npm install -g vercel
 
       - name: Deploy to Vercel
-        if: ${{ secrets.VERCEL_TOKEN != '' }}
         run: |
-          cd frontend
-          vercel --token=${{ secrets.VERCEL_TOKEN }} --prod --yes
+          if [ -n "$VERCEL_TOKEN" ]; then
+            cd frontend
+            vercel --token="$VERCEL_TOKEN" --prod --yes
+          else
+            echo "No VERCEL_TOKEN configured - skipping"
+          fi
         env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
