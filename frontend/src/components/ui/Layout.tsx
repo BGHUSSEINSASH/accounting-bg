@@ -45,6 +45,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         { path: '/accounting/statements', label: t('account_statement.title') },
         { path: '/accounting/installments', label: t('installments.title') },
         { path: '/accounting/cost-centers', label: t('nav.cost_centers') },
+        { path: '/accounting/settlements', label: t('settlements.title') },
       ]
     },
     {

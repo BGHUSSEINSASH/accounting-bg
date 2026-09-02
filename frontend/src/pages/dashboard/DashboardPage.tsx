@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   DollarSign, TrendingUp, Users, Package, Clock, AlertTriangle, Stethoscope,
   ArrowUp, ArrowDown, FileText, ShoppingCart, Plus, UserCheck, BarChart3,
-  Activity, CreditCard, Calendar, PhoneCall, AlertCircle
+  Activity, CreditCard, Calendar, PhoneCall, AlertCircle, CheckCircle, Star
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend, AreaChart, Area } from 'recharts';
 import api from '../../services/api';
@@ -87,6 +87,7 @@ export default function DashboardPage() {
   const [yearlyComparison, setYearlyComparison] = useState<{currentYear: any[], lastYear: any[]}>({currentYear: [], lastYear: []});
   const [predictive, setPredictive] = useState<any>(null);
   const [alerts, setAlerts] = useState<any>({lowStock: [], pendingInvoices: []});
+  const [kpi, setKpi] = useState<any>(null);
 
   const quickActions = [
     { label: t('sales.new'), icon: FileText, to: '/sales/new', color: 'bg-blue-500 hover:bg-blue-600' },
@@ -98,7 +99,7 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [statsRes, salesRes, monthlyRes, trendRes, yearlyRes, predRes, alertRes] = await Promise.all([
+        const [statsRes, salesRes, monthlyRes, trendRes, yearlyRes, predRes, alertRes, kpiRes] = await Promise.all([
           api.get('/dashboard/stats'),
           api.get('/dashboard/recent-sales'),
           api.get('/dashboard/monthly-sales'),
@@ -106,6 +107,7 @@ export default function DashboardPage() {
           api.get('/dashboard/yearly-comparison'),
           api.get('/dashboard/predictive'),
           api.get('/dashboard/alerts'),
+          api.get('/dashboard/kpi'),
         ]);
         setStats(statsRes.data);
         setRecentSales(salesRes.data);
@@ -114,6 +116,7 @@ export default function DashboardPage() {
         setYearlyComparison(yearlyRes.data);
         setPredictive(predRes.data);
         setAlerts(alertRes.data);
+        setKpi(kpiRes.data);
       } catch (err) {
         console.error(err);
       } finally {
@@ -142,8 +145,72 @@ export default function DashboardPage() {
         <DashboardStatCard title={t('doctors.title')} value={stats?.active_doctors || 0} icon={<Stethoscope className="w-5 h-5" />} colorIndex={6} />
       </div>
 
-      {/* Overdue Receivables Alert */}
-      {(stats as any)?.overdue_count > 0 && (
+      {/* KPI Cards Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Collection Rate */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 transition-all duration-300 hover:shadow-md">
+          <div className="flex items-center justify-between mb-3">
+            <div className="bg-emerald-50 p-3 rounded-lg">
+              <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 p-2 rounded-lg text-white shadow-sm">
+                <CheckCircle className="w-5 h-5" />
+              </div>
+            </div>
+            <span className="text-xs font-medium text-gray-500">نسبة التحصيل</span>
+          </div>
+          <p className={`text-3xl font-bold ${(kpi?.collection_rate ?? 0) >= 70 ? 'text-emerald-600' : 'text-rose-600'}`}>
+            {kpi?.collection_rate ?? '--'}%
+          </p>
+          <p className="text-sm text-gray-500 mt-1">الفواتير المدفوعة</p>
+        </div>
+
+        {/* Average Invoice Value */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 transition-all duration-300 hover:shadow-md">
+          <div className="flex items-center justify-between mb-3">
+            <div className="bg-blue-50 p-3 rounded-lg">
+              <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-2 rounded-lg text-white shadow-sm">
+                <DollarSign className="w-5 h-5" />
+              </div>
+            </div>
+            <span className="text-xs font-medium text-gray-500">متوسط الفاتورة</span>
+          </div>
+          <p className="text-2xl font-bold text-gray-900">{formatCurrency(kpi?.avg_invoice_value ?? 0)}</p>
+          <p className="text-sm text-gray-500 mt-1">قيمة الفاتورة الوسطى</p>
+        </div>
+
+        {/* Monthly Growth */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 transition-all duration-300 hover:shadow-md">
+          <div className="flex items-center justify-between mb-3">
+            <div className={`p-3 rounded-lg ${(kpi?.monthly_growth ?? 0) >= 0 ? 'bg-emerald-50' : 'bg-rose-50'}`}>
+              <div className={`bg-gradient-to-br p-2 rounded-lg text-white shadow-sm ${(kpi?.monthly_growth ?? 0) >= 0 ? 'from-emerald-500 to-emerald-600' : 'from-rose-500 to-rose-600'}`}>
+                {(kpi?.monthly_growth ?? 0) >= 0 ? <ArrowUp className="w-5 h-5" /> : <ArrowDown className="w-5 h-5" />}
+              </div>
+            </div>
+            <span className="text-xs font-medium text-gray-500">نمو شهري</span>
+          </div>
+          <p className={`text-3xl font-bold ${kpi?.monthly_growth === null ? 'text-gray-400' : (kpi?.monthly_growth ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+            {kpi?.monthly_growth !== null && kpi?.monthly_growth !== undefined
+              ? `${(kpi.monthly_growth ?? 0) >= 0 ? '+' : ''}${kpi.monthly_growth}%`
+              : '--'}
+          </p>
+          <p className="text-sm text-gray-500 mt-1">مقارنة بالشهر الماضي</p>
+        </div>
+
+        {/* Total Revenue */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 transition-all duration-300 hover:shadow-md">
+          <div className="flex items-center justify-between mb-3">
+            <div className="bg-purple-50 p-3 rounded-lg">
+              <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-2 rounded-lg text-white shadow-sm">
+                <Star className="w-5 h-5" />
+              </div>
+            </div>
+            <span className="text-xs font-medium text-gray-500">إجمالي الإيرادات</span>
+          </div>
+          <p className="text-2xl font-bold text-gray-900">{formatCurrency(kpi?.total_revenue ?? 0)}</p>
+          <p className="text-sm text-gray-500 mt-1">كامل الفترة</p>
+        </div>
+      </div>
+
+      {/* Overdue Receivables Alert */}      {(stats as any)?.overdue_count > 0 && (
         <div className="bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 rounded-xl p-5">
           <div className="flex items-start justify-between flex-wrap gap-4">
             <div className="flex items-center gap-3">

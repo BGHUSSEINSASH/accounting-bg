@@ -154,4 +154,61 @@ router.get('/alerts', async (_req: AuthRequest, res: Response) => {
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
+router.get('/kpi', async (_req: AuthRequest, res: Response) => {
+  try {
+    // Collection rate: paid invoices / total invoices (by count)
+    const invoiceTotals = await queryOne(`
+      SELECT
+        COUNT(*) as total_count,
+        COUNT(*) FILTER (WHERE payment_status = 'paid') as paid_count,
+        COALESCE(SUM(total), 0) as total_revenue,
+        COALESCE(AVG(total), 0) as avg_invoice_value
+      FROM sales_invoices
+    `) as any;
+
+    const collectionRate = invoiceTotals?.total_count > 0
+      ? Math.round((Number(invoiceTotals.paid_count) / Number(invoiceTotals.total_count)) * 100)
+      : 0;
+
+    // Top 5 items by quantity sold
+    const topSellingItems = await query(`
+      SELECT i.name, i.code, SUM(sii.quantity) as total_qty, SUM(sii.total) as total_revenue
+      FROM sales_invoice_items sii
+      JOIN items i ON sii.item_id = i.id
+      GROUP BY i.id, i.name, i.code
+      ORDER BY total_qty DESC
+      LIMIT 5
+    `);
+
+    // Monthly growth: compare current month vs previous month
+    const currentMonthStart = new Date();
+    currentMonthStart.setDate(1);
+    const prevMonthStart = new Date(currentMonthStart);
+    prevMonthStart.setMonth(prevMonthStart.getMonth() - 1);
+    const prevMonthEnd = new Date(currentMonthStart);
+    prevMonthEnd.setDate(0);
+
+    const fmt = (d: Date) => d.toISOString().split('T')[0];
+
+    const [curMonth, prevMonth] = await Promise.all([
+      queryOne(`SELECT COALESCE(SUM(total), 0) as total FROM sales_invoices WHERE invoice_date >= $1`, [fmt(currentMonthStart)]),
+      queryOne(`SELECT COALESCE(SUM(total), 0) as total FROM sales_invoices WHERE invoice_date >= $1 AND invoice_date <= $2`, [fmt(prevMonthStart), fmt(prevMonthEnd)]),
+    ]) as any[];
+
+    const curTotal = Number(curMonth?.total || 0);
+    const prevTotal = Number(prevMonth?.total || 0);
+    const monthlyGrowth = prevTotal > 0 ? Math.round(((curTotal - prevTotal) / prevTotal) * 100 * 10) / 10 : null;
+
+    res.json({
+      collection_rate: collectionRate,
+      avg_invoice_value: Math.round(Number(invoiceTotals?.avg_invoice_value || 0)),
+      total_revenue: Number(invoiceTotals?.total_revenue || 0),
+      top_selling_items: topSellingItems,
+      monthly_growth: monthlyGrowth,
+      current_month_total: curTotal,
+      prev_month_total: prevTotal,
+    });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
 export default router;

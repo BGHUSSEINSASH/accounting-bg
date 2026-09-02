@@ -68,6 +68,105 @@ router.get('/profit', async (req: AuthRequest, res: Response) => {
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
+router.get('/income-statement-detailed', async (req: AuthRequest, res: Response) => {
+  try {
+    const { from, to } = req.query;
+
+    const buildPeriodCondition = (alias: string, f: any, t: any, params: any[]) => {
+      let cond = '';
+      if (f) { cond += ` AND ${alias}.journal_date >= ?`; params.push(f); }
+      if (t) { cond += ` AND ${alias}.journal_date <= ?`; params.push(t); }
+      return cond;
+    };
+
+    // Current period revenues
+    const revParams: any[] = [];
+    const revCond = buildPeriodCondition('je', from, to, revParams);
+    const revenues = await query(
+      `SELECT a.code, a.name, SUM(jl.credit - jl.debit) as amount
+       FROM journal_lines jl
+       JOIN journal_entries je ON jl.journal_entry_id = je.id
+       JOIN accounts a ON jl.account_id = a.id
+       WHERE a.account_type = 'revenue' ${revCond}
+       GROUP BY a.id, a.code, a.name
+       ORDER BY a.code`,
+      revParams
+    );
+
+    // Current period expenses
+    const expParams: any[] = [];
+    const expCond = buildPeriodCondition('je', from, to, expParams);
+    const expenses = await query(
+      `SELECT a.code, a.name, a.account_type as category, SUM(jl.debit - jl.credit) as amount
+       FROM journal_lines jl
+       JOIN journal_entries je ON jl.journal_entry_id = je.id
+       JOIN accounts a ON jl.account_id = a.id
+       WHERE a.account_type IN ('expense','cost_of_goods') ${expCond}
+       GROUP BY a.id, a.code, a.name, a.account_type
+       ORDER BY a.account_type, a.code`,
+      expParams
+    );
+
+    const totalRevenue = (revenues as any[]).reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+    const cogs = (expenses as any[]).filter((e: any) => e.category === 'cost_of_goods').reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
+    const opExpenses = (expenses as any[]).filter((e: any) => e.category === 'expense').reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
+    const grossProfit = totalRevenue - cogs;
+    const operatingProfit = grossProfit - opExpenses;
+    const netProfit = operatingProfit;
+
+    // Previous period comparison (same duration shifted back)
+    let prevRevenue = 0;
+    let prevNetProfit = 0;
+    if (from && to) {
+      const fromDate = new Date(String(from));
+      const toDate = new Date(String(to));
+      const diff = toDate.getTime() - fromDate.getTime();
+      const prevTo = new Date(fromDate.getTime() - 1);
+      const prevFrom = new Date(prevTo.getTime() - diff);
+      const pf = prevFrom.toISOString().split('T')[0];
+      const pt = prevTo.toISOString().split('T')[0];
+
+      const prevRevRows = await query(
+        `SELECT COALESCE(SUM(jl.credit - jl.debit), 0) as total
+         FROM journal_lines jl JOIN journal_entries je ON jl.journal_entry_id = je.id JOIN accounts a ON jl.account_id = a.id
+         WHERE a.account_type = 'revenue' AND je.journal_date >= ? AND je.journal_date <= ?`,
+        [pf, pt]
+      ) as any[];
+      prevRevenue = Number(prevRevRows[0]?.total || 0);
+
+      const prevExpRows = await query(
+        `SELECT COALESCE(SUM(jl.debit - jl.credit), 0) as total
+         FROM journal_lines jl JOIN journal_entries je ON jl.journal_entry_id = je.id JOIN accounts a ON jl.account_id = a.id
+         WHERE a.account_type IN ('expense','cost_of_goods') AND je.journal_date >= ? AND je.journal_date <= ?`,
+        [pf, pt]
+      ) as any[];
+      prevNetProfit = prevRevenue - Number(prevExpRows[0]?.total || 0);
+    }
+
+    res.json({
+      period: { from: from || null, to: to || null },
+      revenues,
+      expenses,
+      summary: {
+        total_revenue: totalRevenue,
+        cogs,
+        gross_profit: grossProfit,
+        gross_margin: totalRevenue > 0 ? (grossProfit / totalRevenue * 100) : 0,
+        operating_expenses: opExpenses,
+        operating_profit: operatingProfit,
+        net_profit: netProfit,
+        net_margin: totalRevenue > 0 ? (netProfit / totalRevenue * 100) : 0,
+      },
+      comparison: {
+        prev_revenue: prevRevenue,
+        prev_net_profit: prevNetProfit,
+        revenue_change: prevRevenue > 0 ? ((totalRevenue - prevRevenue) / prevRevenue * 100) : null,
+        profit_change: prevNetProfit !== 0 ? ((netProfit - prevNetProfit) / Math.abs(prevNetProfit) * 100) : null,
+      },
+    });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
 router.get('/export/:type', async (req: AuthRequest, res: Response) => {
   try {
     let data: any[] = [];

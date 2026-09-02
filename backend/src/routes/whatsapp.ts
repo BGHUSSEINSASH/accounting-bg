@@ -54,4 +54,62 @@ router.get('/messages', async (req: AuthRequest, res: Response) => {
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
+router.get('/overdue-preview', async (_req: AuthRequest, res: Response) => {
+  try {
+    const rows = await query(
+      `SELECT c.id as client_id, c.name, c.phone,
+        COUNT(si.id) as overdue_invoice_count,
+        SUM(si.remaining_amount) as total_overdue
+       FROM sales_invoices si
+       JOIN clients c ON si.client_id = c.id
+       WHERE si.payment_status IN ('unpaid','partial')
+         AND si.invoice_date <= CURRENT_DATE - INTERVAL '30 days'
+         AND si.remaining_amount > 0
+       GROUP BY c.id, c.name, c.phone
+       ORDER BY total_overdue DESC`
+    );
+    res.json(rows);
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/send-reminder', authorize('admin', 'manager', 'sales_rep'), async (req: AuthRequest, res: Response) => {
+  try {
+    const { client_id, message } = req.body;
+    if (!client_id || !message) return res.status(400).json({ error: 'client_id والرسالة مطلوبان' });
+    const client = await queryOne('SELECT phone, name FROM clients WHERE id = ?', [client_id]) as { phone: string; name: string } | undefined;
+    if (!client || !client.phone) return res.status(404).json({ error: 'العميل غير موجود أو لا يمتلك رقم هاتف' });
+    const phone = client.phone.replace(/[^0-9]/g, '');
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+    void logActivityAsync(req.user!.id, 'send_whatsapp_reminder', 'clients', Number(client_id));
+    res.json({ url, phone: client.phone, name: client.name });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/bulk-reminder', authorize('admin', 'manager'), async (req: AuthRequest, res: Response) => {
+  try {
+    const { message_template } = req.body;
+    const rows = await query(
+      `SELECT c.id, c.name, c.phone, SUM(si.remaining_amount) as total_overdue
+       FROM sales_invoices si
+       JOIN clients c ON si.client_id = c.id
+       WHERE si.payment_status IN ('unpaid','partial')
+         AND si.invoice_date <= CURRENT_DATE - INTERVAL '30 days'
+         AND si.remaining_amount > 0
+         AND c.phone IS NOT NULL AND c.phone != ''
+       GROUP BY c.id, c.name, c.phone`
+    ) as Array<{ id: number; name: string; phone: string; total_overdue: number }>;
+
+    const urls = rows.map((client) => {
+      const msg = message_template
+        ? message_template.replace('{name}', client.name).replace('{amount}', String(client.total_overdue))
+        : `عزيزي ${client.name}، لديك مبلغ متأخر قدره ${client.total_overdue}. يرجى التواصل معنا لتسوية الحساب.`;
+      const phone = client.phone.replace(/[^0-9]/g, '');
+      return { client_id: client.id, name: client.name, phone: client.phone, url: `https://wa.me/${phone}?text=${encodeURIComponent(msg)}` };
+    });
+
+    void logActivityAsync(req.user!.id, 'bulk_whatsapp_reminder', 'clients');
+    res.json({ count: urls.length, urls });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
 export default router;

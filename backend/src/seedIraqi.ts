@@ -268,6 +268,15 @@ export async function seedIraqiData(): Promise<void> {
                VALUES ($1,$2,$3,$4,$5)`,
               [res.id, itemRow.id, item.qty, item.price, item.qty * item.price]
             );
+
+            // Insert item_batch for FIFO costing
+            const batchNum = `BATCH-${pur.num}-${item.code}`;
+            await execute(
+              `INSERT INTO item_batches (item_id, batch_number, quantity, unit_cost, purchase_price)
+               VALUES ($1, $2, $3, $4, $4)
+               ON CONFLICT DO NOTHING`,
+              [itemRow.id, batchNum, item.qty, item.price]
+            );
           }
         }
       }

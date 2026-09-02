@@ -51,6 +51,65 @@ router.put('/', authorize('admin'), async (req: AuthRequest, res: Response) => {
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
+// GET /settings/all - returns all settings as array
+router.get('/all', async (_req: AuthRequest, res: Response) => {
+  try {
+    const rows = await query('SELECT setting_key, setting_value, updated_at FROM settings ORDER BY setting_key') as any[];
+    res.json(rows);
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// GET /settings/:key - returns single setting
+router.get('/:key', async (req: AuthRequest, res: Response) => {
+  try {
+    const row = await queryOne('SELECT setting_key, setting_value, updated_at FROM settings WHERE setting_key = $1', [req.params.key]);
+    if (!row) return res.status(404).json({ error: 'Setting not found' });
+    res.json(row);
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// PUT /settings/:key - updates a single setting
+router.put('/:key', authorize('admin'), async (req: AuthRequest, res: Response) => {
+  try {
+    const { value } = req.body;
+    if (value === undefined) return res.status(400).json({ error: 'value is required' });
+    await execute(
+      `INSERT INTO settings (setting_key, setting_value) VALUES ($1, $2)
+       ON CONFLICT (setting_key) DO UPDATE SET setting_value = EXCLUDED.setting_value, updated_at = CURRENT_TIMESTAMP`,
+      [req.params.key, String(value)]
+    );
+    void logActivityAsync(req.user!.id, 'update_setting', 'settings', undefined, `تحديث الإعداد: ${req.params.key}`);
+    res.json({ message: 'Setting updated', key: req.params.key, value });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// POST /settings/company - updates company info (multiple fields at once)
+router.post('/company', authorize('admin'), async (req: AuthRequest, res: Response) => {
+  try {
+    const existing = await queryOne('SELECT id FROM company_info LIMIT 1') as { id: number } | undefined;
+    const { name, name_en, logo, address, phone, email, website, tax_number, commercial_registry, cr_number } = req.body;
+    if (existing) {
+      await execute(
+        `UPDATE company_info SET
+          name = COALESCE($1, name), name_en = COALESCE($2, name_en), logo = COALESCE($3, logo),
+          address = COALESCE($4, address), phone = COALESCE($5, phone), email = COALESCE($6, email),
+          website = COALESCE($7, website), tax_number = COALESCE($8, tax_number),
+          commercial_registry = COALESCE($9, commercial_registry), cr_number = COALESCE($10, cr_number)
+         WHERE id = $11`,
+        [name, name_en, logo, address, phone, email, website, tax_number, commercial_registry, cr_number, existing.id]
+      );
+    } else {
+      await execute(
+        `INSERT INTO company_info (name, name_en, logo, address, phone, email, website, tax_number, commercial_registry, cr_number)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+        [name || '', name_en || '', logo || '', address || '', phone || '', email || '', website || '', tax_number || '', commercial_registry || '', cr_number || '']
+      );
+    }
+    void logActivityAsync(req.user!.id, 'update_company', 'settings', undefined, 'تحديث معلومات الشركة');
+    res.json({ message: 'Company info updated' });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
 router.get('/currencies', async (_req: AuthRequest, res: Response) => {
   try {
     const currencies = await query("SELECT * FROM currencies WHERE is_active = 1 ORDER BY is_base DESC, code");

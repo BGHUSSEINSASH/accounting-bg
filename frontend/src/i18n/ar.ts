@@ -1448,6 +1448,13 @@
   'dashboard.top_overdue_clients': 'أكبر العملاء المتأخرين',
   'dashboard.monthly_target': 'هدف الشهر',
   'dashboard.collection_rate': 'نسبة التحصيل',
+  'settlements.title': 'التسويات',
+  'settlements.select_client': 'اختر العميل',
+  'settlements.payment_amount': 'مبلغ الدفع',
+  'settlements.preview': 'معاينة التوزيع',
+  'settlements.confirm': 'تأكيد التسوية',
+  'settlements.invoice': 'الفاتورة',
+  'settlements.allocated': 'المخصص',
 };
 
 export default ar;

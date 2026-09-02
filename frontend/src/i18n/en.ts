@@ -1409,6 +1409,13 @@
   'dashboard.top_overdue_clients': 'Top Overdue Clients',
   'dashboard.monthly_target': 'Monthly Target',
   'dashboard.collection_rate': 'Collection Rate',
+  'settlements.title': 'Settlements',
+  'settlements.select_client': 'Select Client',
+  'settlements.payment_amount': 'Payment Amount',
+  'settlements.preview': 'Preview Distribution',
+  'settlements.confirm': 'Confirm Settlement',
+  'settlements.invoice': 'Invoice',
+  'settlements.allocated': 'Allocated',
 };
 
 export default en;

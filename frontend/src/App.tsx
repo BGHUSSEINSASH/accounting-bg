@@ -77,6 +77,7 @@ const ExpiryAlertsPage = lazy(() => import('./pages/inventory/ExpiryAlertsPage')
 const AccountStatementPage = lazy(() => import('./pages/accounting/AccountStatementPage'));
 const InstallmentsPage = lazy(() => import('./pages/accounting/InstallmentsPage'));
 const CostCentersPage = lazy(() => import('./pages/accounting/CostCentersPage'));
+const SettlementsPage = lazy(() => import('./pages/accounting/SettlementsPage'));
 
 // Admin
 const PermissionsPage = lazy(() => import('./pages/admin/PermissionsPage'));
@@ -129,6 +130,7 @@ function App() {
           <Route path="/accounting/statements" element={<ProtectedRoute><AccountStatementPage /></ProtectedRoute>} />
           <Route path="/accounting/installments" element={<ProtectedRoute><InstallmentsPage /></ProtectedRoute>} />
           <Route path="/accounting/cost-centers" element={<ProtectedRoute><CostCentersPage /></ProtectedRoute>} />
+          <Route path="/accounting/settlements" element={<ProtectedRoute><SettlementsPage /></ProtectedRoute>} />
 
           {/* Sales */}
           <Route path="/sales/invoices" element={<ProtectedRoute><SalesInvoicesPage /></ProtectedRoute>} />
