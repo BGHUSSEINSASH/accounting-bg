@@ -1455,6 +1455,11 @@
   'settlements.confirm': 'تأكيد التسوية',
   'settlements.invoice': 'الفاتورة',
   'settlements.allocated': 'المخصص',
+
+  // Additional common keys
+  'common.import': 'استيراد',
+  'common.date_range': 'نطاق التاريخ',
+  'reports.profit_loss': 'الأرباح والخسائر',
 };
 
 export default ar;

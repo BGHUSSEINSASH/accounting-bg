@@ -6,6 +6,7 @@ import Layout from './components/ui/Layout';
 import LoginPage from './pages/auth/LoginPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import LoadingScreen from './components/ui/LoadingScreen';
+import ErrorBoundary from './components/ErrorBoundary';
 
 const ChartOfAccountsPage = lazy(() => import('./pages/accounting/ChartOfAccountsPage'));
 const JournalEntriesPage = lazy(() => import('./pages/accounting/JournalEntriesPage'));
@@ -105,7 +106,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function App() {
   return (
-    <BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
       <Toaster position="top-center" toastOptions={{ duration: 3000, style: { fontFamily: 'Cairo, sans-serif' } }} />
       <Suspense fallback={<LoadingScreen />}>
         <Routes>
@@ -202,9 +204,10 @@ function App() {
           <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
 
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </Suspense>
+      </Routes>
+        </Suspense>
     </BrowserRouter>
+    </ErrorBoundary>
   );
 }
 

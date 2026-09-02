@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, ChevronDown, ChevronLeft } from 'lucide-react';
+import { Plus, Edit2, Trash2, ChevronDown, ChevronLeft, GitBranch } from 'lucide-react';
 import api from '../../services/api';
 import PageHeader from '../../components/ui/PageHeader';
 import PrintButton from '../../components/ui/PrintButton';
@@ -34,6 +34,12 @@ export default function ChartOfAccountsPage() {
     setExpanded(newExpanded);
   };
 
+  const openAddSub = (parentAccount: any) => {
+    setEditing(null);
+    setForm({ code: '', name: '', name_en: '', type: parentAccount.type, parent_id: parentAccount.id.toString() });
+    setShowModal(true);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const data = { ...form, parent_id: form.parent_id ? parseInt(form.parent_id) : null };
@@ -53,35 +59,46 @@ export default function ChartOfAccountsPage() {
     fetchAccounts();
   };
 
-  const renderAccounts = (parentId: number | null, level: number = 0) => {
-    return accounts.filter(a => a.parent_id === parentId).map(account => (
-      <div key={account.id}>
-        <tr className="hover:bg-gray-50" style={{ paddingRight: level * 20 }}>
+  const renderAccounts = (parentId: number | null, level: number = 0): JSX.Element[] => {
+    return accounts.filter(a => a.parent_id === parentId).flatMap(account => {
+      const hasChildren = accounts.some(a => a.parent_id === account.id);
+      const isExpanded = expanded.has(account.id);
+      const rows: JSX.Element[] = [
+        <tr key={account.id} className="hover:bg-gray-50">
           <td className="table-cell">
             <div className="flex items-center gap-1" style={{ marginRight: level * 20 }}>
-              {accounts.some(a => a.parent_id === account.id) && (
-                <button onClick={() => toggleExpand(account.id)} className="p-0.5">
-                  {expanded.has(account.id) ? <ChevronDown className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+              {hasChildren ? (
+                <button onClick={() => toggleExpand(account.id)} className="p-0.5 text-gray-400 hover:text-gray-700">
+                  {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
                 </button>
+              ) : (
+                <span className="w-5 inline-block" />
               )}
-              <span className={level === 0 ? 'font-bold' : ''}>{account.name}</span>
+              <span className={level === 0 ? 'font-bold' : level === 1 ? 'font-medium' : 'text-gray-600'}>
+                {account.name}
+              </span>
+              {account.name_en && <span className="text-xs text-gray-400 mr-1">({account.name_en})</span>}
             </div>
           </td>
           <td className="table-cell text-gray-500">{account.code}</td>
           <td className="table-cell">
             <span className="badge badge-info">{ACCOUNT_TYPES.find(t => t.value === account.type)?.label}</span>
           </td>
-          <td className="table-cell text-left">{formatCurrency(account.balance)}</td>
+          <td className="table-cell text-left font-mono text-sm">{formatCurrency(account.balance || 0)}</td>
           <td className="table-cell">
             <div className="flex gap-1">
-              <button onClick={() => { setEditing(account); setForm({ code: account.code, name: account.name, name_en: account.name_en || '', type: account.type, parent_id: account.parent_id?.toString() || '' }); setShowModal(true); }} className="p-1 hover:bg-gray-100 rounded"><Edit2 className="w-4 h-4 text-blue-500" /></button>
-              <button onClick={() => setConfirmDelete(account.id)} className="p-1 hover:bg-gray-100 rounded"><Trash2 className="w-4 h-4 text-red-500" /></button>
+              <button title="إضافة حساب فرعي" onClick={() => openAddSub(account)} className="p-1 hover:bg-green-50 rounded text-green-500"><GitBranch className="w-4 h-4" /></button>
+              <button title="تعديل" onClick={() => { setEditing(account); setForm({ code: account.code, name: account.name, name_en: account.name_en || '', type: account.type, parent_id: account.parent_id?.toString() || '' }); setShowModal(true); }} className="p-1 hover:bg-gray-100 rounded"><Edit2 className="w-4 h-4 text-blue-500" /></button>
+              <button title="حذف" onClick={() => setConfirmDelete(account.id)} className="p-1 hover:bg-gray-100 rounded"><Trash2 className="w-4 h-4 text-red-500" /></button>
             </div>
           </td>
         </tr>
-        {expanded.has(account.id) && renderAccounts(account.id, level + 1)}
-      </div>
-    ));
+      ];
+      if (isExpanded) {
+        rows.push(...renderAccounts(account.id, level + 1));
+      }
+      return rows;
+    });
   };
 
   return (
@@ -101,7 +118,12 @@ export default function ChartOfAccountsPage() {
               </tr>
             </thead>
             <tbody>
-              {loading ? <tr><td colSpan={5} className="text-center py-8 text-gray-500">{t('common.loading')}</td></tr> : accounts.filter(a => a.parent_id === null).length === 0 ? <tr><td colSpan={5} className="text-center py-8 text-gray-500">{t('chart.empty')}</td></tr> : renderAccounts(null)}
+              {loading
+                ? <tr><td colSpan={5} className="text-center py-8 text-gray-500">{t('common.loading')}</td></tr>
+                : accounts.filter(a => a.parent_id === null).length === 0
+                  ? <tr><td colSpan={5} className="text-center py-8 text-gray-500">{t('chart.empty')}</td></tr>
+                  : renderAccounts(null)
+              }
             </tbody>
           </table>
         </div>

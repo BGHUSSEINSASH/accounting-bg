@@ -2,6 +2,7 @@
 import { query, queryOne } from '../config/database';
 import { authenticate } from '../middleware/auth';
 import { AuthRequest } from '../types';
+import * as XLSX from 'xlsx';
 
 const router = Router();
 router.use(authenticate);
@@ -176,10 +177,10 @@ router.get('/export/:type', async (req: AuthRequest, res: Response) => {
           FROM sales_invoices si LEFT JOIN clients c ON si.client_id = c.id LEFT JOIN users u ON si.sales_rep_id = u.id ORDER BY si.invoice_date DESC`);
         break;
       case 'clients':
-        data = await query('SELECT code, name, phone, email, city, current_balance FROM clients WHERE is_active = 1 ORDER BY name');
+        data = await query('SELECT code, name, phone, email, city, current_balance FROM clients WHERE is_active = true ORDER BY name');
         break;
       case 'items':
-        data = await query('SELECT code, name, category, current_quantity, min_quantity, purchase_price, selling_price FROM items WHERE is_active = 1 ORDER BY name');
+        data = await query('SELECT code, name, category, current_quantity, min_quantity, purchase_price, selling_price FROM items WHERE is_active = true ORDER BY name');
         break;
       case 'attendance':
         data = await query(`SELECT a.date, u.full_name, a.check_in_time, a.check_out_time, a.status, a.late_minutes, a.work_hours
@@ -189,6 +190,82 @@ router.get('/export/:type', async (req: AuthRequest, res: Response) => {
         return res.status(400).json({ error: 'Invalid export type' });
     }
     res.json(data);
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// Excel export endpoints
+router.get('/export/clients/excel', async (req: AuthRequest, res: Response) => {
+  try {
+    const data = await query(`
+      SELECT code AS "الكود", name AS "الاسم", phone AS "الهاتف",
+             email AS "البريد الإلكتروني", city AS "المدينة",
+             current_balance AS "الرصيد الحالي", credit_limit AS "الحد الائتماني",
+             tax_number AS "الرقم الضريبي"
+      FROM clients WHERE is_active = true ORDER BY name
+    `) as any[];
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(data);
+    XLSX.utils.book_append_sheet(wb, ws, 'العملاء');
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="clients.xlsx"');
+    res.send(buf);
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/export/items/excel', async (req: AuthRequest, res: Response) => {
+  try {
+    const data = await query(`
+      SELECT code AS "الكود", name AS "الاسم", name_en AS "الاسم الإنجليزي",
+             category AS "التصنيف", unit AS "الوحدة",
+             current_quantity AS "الكمية الحالية", min_quantity AS "الحد الأدنى",
+             purchase_price AS "سعر الشراء", selling_price AS "سعر البيع",
+             barcode AS "الباركود"
+      FROM items WHERE is_active = true ORDER BY name
+    `) as any[];
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(data);
+    XLSX.utils.book_append_sheet(wb, ws, 'الأصناف');
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="items.xlsx"');
+    res.send(buf);
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/export/sales/excel', async (req: AuthRequest, res: Response) => {
+  try {
+    const { from, to } = req.query;
+    const params: any[] = [];
+    let conditions = '';
+    if (from) { params.push(from); conditions += ` AND si.invoice_date >= $${params.length}`; }
+    if (to) { params.push(to); conditions += ` AND si.invoice_date <= $${params.length}`; }
+    const data = await query(`
+      SELECT si.invoice_number AS "رقم الفاتورة",
+             si.invoice_date AS "التاريخ",
+             c.name AS "العميل",
+             u.full_name AS "المندوب",
+             si.subtotal AS "المجموع الفرعي",
+             si.discount AS "الخصم",
+             si.tax AS "الضريبة",
+             si.total AS "الإجمالي",
+             si.paid_amount AS "المدفوع",
+             si.remaining_amount AS "المتبقي",
+             si.payment_status AS "حالة الدفع",
+             si.payment_method AS "طريقة الدفع"
+      FROM sales_invoices si
+      LEFT JOIN clients c ON si.client_id = c.id
+      LEFT JOIN users u ON si.sales_rep_id = u.id
+      WHERE 1=1 ${conditions}
+      ORDER BY si.invoice_date DESC
+    `, params) as any[];
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(data);
+    XLSX.utils.book_append_sheet(wb, ws, 'المبيعات');
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="sales.xlsx"');
+    res.send(buf);
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
