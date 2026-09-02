@@ -1,71 +1,132 @@
-# Deployment
+# 🚀 دليل رفع ونشر النظام المحاسبي
 
-## Free hosting stack
-
-The simplest free setup for this project is:
-
-- Frontend: Vercel free tier
-- Backend: Render free tier
-- Files and backups: Supabase free storage bucket
-- Database: local SQLite on Render free tier for a lightweight demo, or migrate later to a managed database if you need persistence beyond the free tier
-
-This repository now includes `render.yaml` for the backend, `frontend/vercel.json` for the frontend, and a frontend env template at `frontend/.env.production.example`.
-
-## Container setup
-
-The repository now includes a single container image that builds the frontend and backend together and serves the compiled frontend from the backend app.
-
-## Environment variables
-
-Set the backend values in `backend/.env.production` before starting the stack. The important deployment variables are:
-
-- `PORT=3000`
-- `NODE_ENV=production`
-- `TRUST_PROXY=1`
-- `APP_URL`, `PUBLIC_URL`, `FRONTEND_ORIGIN`, `CORS_ORIGIN`
-- `DB_PATH=/app/backend/data/accounting.db`
-- `UPLOAD_DIR=/app/backend/uploads`
-- `BACKUP_DIR=/app/backend/backups`
-- `CLOUD_PROVIDER=supabase` or `CLOUD_PROVIDER=s3`
-- `CLOUD_SYNC_INTERVAL_MS`
-- `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_BUCKET`
-- `S3_REGION`, `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET`, `S3_FORCE_PATH_STYLE`, `S3_PUBLIC_URL`
-
-## Nginx
-
-The repository now includes an nginx reverse proxy template in [nginx/default.conf](nginx/default.conf) with:
-
-- HTTP to HTTPS redirect
-- TLS termination on port 443
-- reverse proxy to the app container on port 3000
-- an ACME challenge location for Let's Encrypt
-
-Replace `example.com` with your real domain and mount your certificates under `nginx/certs/`.
-
-Automatic renewal is handled by the `certbot` service in `docker-compose.yml`. It renews certificates every 12 hours and reloads nginx after a successful renewal.
-
-## First certificate issue
-
-Before the `certbot` loop can renew anything, run an initial issuance against your domain once DNS is pointing to this server. Use the same `DOMAIN_NAME` and `WWW_DOMAIN` values from `backend/.env.production`.
-
-The repository includes [nginx/init-letsencrypt.sh](nginx/init-letsencrypt.sh) for that first issuance. Set `LETSENCRYPT_EMAIL` in `backend/.env.production`, then run the script from the server where Docker Compose is available.
-
-## Run
+## خطوات رفع الكود على GitHub
 
 ```bash
-docker compose up -d --build
+# 1. افتح Git Bash أو PowerShell في مجلد المشروع
+cd "C:\Users\taha0\OneDrive\Desktop\تطبيق حسابات\تطبيق حسابات"
+
+# 2. أضف token في الـ URL (أو سيطلبها Git تلقائياً)
+# اذهب إلى: https://github.com/settings/tokens/new
+# أنشئ token بصلاحية: repo (كل الصلاحيات)
+
+# 3. ارفع الكود
+git push origin master:main
+
+# أو باستخدام token مباشرة:
+git remote set-url origin https://YOUR_TOKEN@github.com/BGHUSSEINSASH/accounting-bg.git
+git push origin master:main
 ```
 
-The app will be available through nginx on ports `80` and `443`. If you want direct access during local debugging, you can still publish the app port separately.
+---
 
-## Free deployment steps
+## 🌐 نشر البـ Backend على Render
 
-1. Create a Render web service from this repo using `render.yaml` or the Render dashboard.
-2. Create a Vercel project from the `frontend` folder and set `VITE_API_BASE_URL` to your Render backend URL plus `/api`.
-3. Create a Supabase project, then set `CLOUD_PROVIDER=supabase` and fill the storage credentials in Render.
-4. Set the backend CORS origin to the Vercel URL so the browser can call the API cross-origin.
-5. Keep uploads and backups in Supabase storage so file assets survive free-host restarts more reliably than local disk.
+### 1. إنشاء PostgreSQL Database
+1. اذهب إلى [render.com](https://render.com) وسجّل دخول
+2. اضغط **New** → **PostgreSQL**
+3. اختر:
+   - Name: `accounting-bg-db`
+   - Region: Frankfurt
+   - Plan: Free
+4. بعد الإنشاء، انسخ **External Database URL**
 
-## Important limitation
+### 2. إنشاء Web Service
+1. اضغط **New** → **Web Service**
+2. اربط بـ GitHub repo: `BGHUSSEINSASH/accounting-bg`
+3. إعدادات:
+   - **Root Directory**: `backend`
+   - **Build Command**: `npm install --ignore-scripts && npm run build`
+   - **Start Command**: `node dist/app.js`
+4. أضف Environment Variables:
+   - `DATABASE_URL` = (من خطوة 1)
+   - `JWT_SECRET` = (نص عشوائي طويل)
+   - `REFRESH_SECRET` = (نص عشوائي طويل آخر)
+   - `NODE_ENV` = `production`
+   - `CORS_ORIGIN` = (عنوان Vercel — أضفه بعد خطوة Frontend)
 
-The free tier on Render is good for demos and light usage, but its local disk is not a durable production database. For a truly permanent free setup, the next step is moving the SQLite data layer to a hosted free database service.
+### 3. تشغيل Schema على PostgreSQL
+بعد إنشاء الـ Service، اذهب لـ **Shell** في Render وشغّل:
+```bash
+node -e "
+const { Pool } = require('pg');
+const fs = require('fs');
+const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+const schema = fs.readFileSync('database/schema.postgresql.sql', 'utf8');
+pool.query(schema).then(() => { console.log('Done'); pool.end(); }).catch(console.error);
+"
+```
+
+---
+
+## 🌐 نشر الـ Frontend على Vercel
+
+### 1. إنشاء Project
+1. اذهب إلى [vercel.com](https://vercel.com) وسجّل دخول
+2. **New Project** → Import من GitHub → `BGHUSSEINSASH/accounting-bg`
+3. إعدادات:
+   - **Root Directory**: `frontend`
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `dist`
+4. أضف Environment Variable:
+   - `VITE_API_BASE_URL` = `https://accounting-bg-backend.onrender.com/api`
+
+### 2. بعد النشر
+- انسخ عنوان Vercel (مثال: `https://accounting-bg.vercel.app`)
+- اذهب لـ Render → Backend Service → Environment Variables
+- حدّث `CORS_ORIGIN` = عنوان Vercel
+
+---
+
+## 🗄️ إعداد Supabase (بديل لـ Render Database)
+
+1. اذهب إلى [supabase.com](https://supabase.com) وأنشئ project جديد
+2. اذهب إلى **SQL Editor** وشغّل محتوى ملف:
+   `database/schema.postgresql.sql`
+3. اذهب إلى **Settings** → **Database** → **Connection string** → **URI**
+4. انسخ الـ URL واستخدمه كـ `DATABASE_URL`
+
+---
+
+## 🔄 GitHub Actions CI/CD
+
+بعد رفع الكود، أضف هذه Secrets في GitHub:
+- `RENDER_DEPLOY_HOOK` = من Render → Settings → Deploy Hook
+- `VERCEL_TOKEN` = من Vercel → Settings → Tokens
+- `VERCEL_ORG_ID` = من Vercel → Settings
+- `VERCEL_PROJECT_ID` = من Vercel → Project Settings
+
+سيتم البناء والنشر تلقائياً عند كل `git push`.
+
+---
+
+## 💻 تشغيل محلي مع PostgreSQL
+
+```bash
+# 1. أنشئ .env في backend/
+DATABASE_URL=postgresql://user:pass@localhost:5432/accounting
+JWT_SECRET=any-secret-key
+REFRESH_SECRET=another-secret-key
+
+# 2. شغّل Backend
+cd backend
+npm install
+npm run dev
+
+# 3. شغّل Frontend (في terminal آخر)  
+cd frontend
+npm install
+npm run dev
+```
+
+---
+
+## 📋 بيانات الدخول الافتراضية
+
+| المستخدم | كلمة المرور | الدور |
+|---|---|---|
+| admin | 123456 | مدير |
+| mohammed | 123456 | مدير مبيعات |
+| sara | 123456 | محاسب |
+| ali_sale | 123456 | مندوب مبيعات |
+| fatima | 123456 | مندوبة مبيعات |
