@@ -1,11 +1,67 @@
+# Dependencies
 node_modules/
+.npm
+
+# Build outputs
 dist/
 build/
+.vite/
+
+# Environment files — NEVER commit real secrets
 .env
+.env.local
+.env.*.local
+# But DO commit .env.example and .env.production.example
+!.env.example
+!.env.production.example
+
+# Database files
 *.db
+*.db-shm
+*.db-wal
+backend/data/
+
+# Uploads and backups (large binary files)
+backend/uploads/*
+!backend/uploads/.gitkeep
+backend/backups/*
+!backend/backups/.gitkeep
 uploads/*
 !uploads/.gitkeep
-data/
+
+# Logs
 *.log
+logs/
+backend/logs/
+backend/server.log*
+stderr.txt
+stdout.txt
+
+# OS files
 .DS_Store
 Thumbs.db
+Desktop.ini
+
+# Editor files
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# Temp / test scripts
+check_db.js
+clear_lockout.js
+fix_*.js
+fix_*.cjs
+reset-password.js
+test_login*.js
+backend/add_*.js
+backend/fix_*.js
+
+# SSL certificates (generated locally)
+backend/certs/
+
+# Mobile build artifacts
+mobile/.expo/
+mobile/android/
+mobile/ios/

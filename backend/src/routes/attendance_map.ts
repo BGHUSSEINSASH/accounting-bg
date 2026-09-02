@@ -1,16 +1,15 @@
 import { Router, Response } from 'express';
-import { getDatabase } from '../config/database';
+import { query, queryOne } from '../config/database';
 import { authenticate } from '../middleware/auth';
 import { AuthRequest } from '../types';
 
 const router = Router();
 router.use(authenticate);
 
-router.get('/', (req: AuthRequest, res: Response) => {
+router.get('/', async (req: AuthRequest, res: Response) => {
   try {
-    const db = getDatabase();
     const today = new Date().toISOString().split('T')[0];
-    const records = db.prepare(`
+    const records = await query(`
       SELECT a.id, a.user_id, u.full_name, u.department, u.phone,
         a.check_in_time, a.check_out_time, a.check_in_location_lat, a.check_in_location_lng,
         a.check_out_location_lat, a.check_out_location_lng, a.status, a.late_minutes, a.early_minutes,
@@ -19,23 +18,20 @@ router.get('/', (req: AuthRequest, res: Response) => {
       JOIN users u ON a.user_id = u.id
       WHERE a.date = ?
       ORDER BY u.full_name
-    `).all(today);
-
+    `, [today]);
     const withMapUrl = records.map((r: any) => ({
       ...r,
       check_in_map_url: r.check_in_location_lat ? `https://www.google.com/maps?q=${r.check_in_location_lat},${r.check_in_location_lng}` : null,
       check_out_map_url: r.check_out_location_lat ? `https://www.google.com/maps?q=${r.check_out_location_lat},${r.check_out_location_lng}` : null,
     }));
-
     res.json({ records: withMapUrl, date: today });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
-router.get('/:userId', (req: AuthRequest, res: Response) => {
+router.get('/:userId', async (req: AuthRequest, res: Response) => {
   try {
-    const db = getDatabase();
     const { from, to, limit = 30 } = req.query;
-    let query = `
+    let sql = `
       SELECT a.*, u.full_name, u.department, u.phone,
         s.name as shift_name, s.start_time as shift_start, s.end_time as shift_end
       FROM attendance a
@@ -45,16 +41,14 @@ router.get('/:userId', (req: AuthRequest, res: Response) => {
       WHERE a.user_id = ?
     `;
     const params: any[] = [req.params.userId];
-    if (from) { query += ' AND a.date >= ?'; params.push(from); }
-    if (to) { query += ' AND a.date <= ?'; params.push(to); }
-    query += ' ORDER BY a.date DESC LIMIT ?';
+    if (from) { sql += ' AND a.date >= ?'; params.push(from); }
+    if (to) { sql += ' AND a.date <= ?'; params.push(to); }
+    sql += ' ORDER BY a.date DESC LIMIT ?';
     params.push(Number(limit));
-    const records = db.prepare(query).all(...params) as any[];
-
-    const user = db.prepare('SELECT id, full_name, department, phone, email, profile_image FROM users WHERE id = ?').get(req.params.userId);
+    const records = await query(sql, params) as any[];
+    const user = await queryOne('SELECT id, full_name, department, phone, email, profile_image FROM users WHERE id = ?', [req.params.userId]);
     if (!user) return res.status(404).json({ error: 'User not found' });
-
-    const summary = db.prepare(`
+    const summary = await queryOne(`
       SELECT
         COUNT(*) as total_days,
         SUM(CASE WHEN a.status = 'present' THEN 1 ELSE 0 END) as present_days,
@@ -64,14 +58,12 @@ router.get('/:userId', (req: AuthRequest, res: Response) => {
         COALESCE(SUM(a.early_minutes), 0) as total_early_minutes,
         COALESCE(SUM(a.work_hours), 0) as total_work_hours
       FROM attendance a WHERE a.user_id = ?
-    `).get(req.params.userId) as any;
-
+    `, [req.params.userId]) as any;
     const withMapUrl = records.map((r: any) => ({
       ...r,
       check_in_map_url: r.check_in_location_lat ? `https://www.google.com/maps?q=${r.check_in_location_lat},${r.check_in_location_lng}` : null,
       check_out_map_url: r.check_out_location_lat ? `https://www.google.com/maps?q=${r.check_out_location_lat},${r.check_out_location_lng}` : null,
     }));
-
     res.json({ user, records: withMapUrl, summary });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });

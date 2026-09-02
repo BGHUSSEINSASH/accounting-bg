@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
 import { enqueueRequest, isOfflineMutationError } from './syncQueue';
 import { getApiBaseUrl } from '../utils/apiUrl';
 

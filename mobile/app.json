@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "النظام المحاسبي",
+    "slug": "accounting-system-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#ffffff",
+    "plugins": [
+      ["expo-camera", { "cameraPermission": "يسمح التطبيق باستخدام الكاميرا لمسح الباركود وتسجيل الحضور" }],
+      ["expo-location", { "locationAlwaysAndWhenInUsePermission": "يسمح التطبيق بالوصول للموقع لتسجيل الحضور وزيارات العملاء" }]
+    ],
+    "android": {
+      "package": "iq.alamal.accounting",
+      "permissions": ["CAMERA", "ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION", "INTERNET"]
+    },
+    "ios": {
+      "bundleIdentifier": "iq.alamal.accounting",
+      "supportsTablet": true
+    }
+  }
+}

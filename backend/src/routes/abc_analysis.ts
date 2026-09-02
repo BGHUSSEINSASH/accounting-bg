@@ -1,14 +1,13 @@
 import { Router, Response } from 'express';
-import { getDatabase } from '../config/database';
+import { query } from '../config/database';
 import { authenticate } from '../middleware/auth';
 import { AuthRequest } from '../types';
 
 const router = Router();
 
-router.get('/', authenticate, (req: AuthRequest, res: Response) => {
+router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const db = getDatabase();
-    const items = db.prepare(`
+    const items = await query(`
       SELECT i.id, i.name, i.current_quantity, i.selling_price, 
              COALESCE(SUM(sii.quantity * sii.unit_price), 0) as total_sales
       FROM items i
@@ -16,8 +15,7 @@ router.get('/', authenticate, (req: AuthRequest, res: Response) => {
       WHERE i.is_active = 1
       GROUP BY i.id
       ORDER BY total_sales DESC
-    `).all() as any[];
-
+    `) as any[];
     const total = items.reduce((sum: number, i: any) => sum + i.total_sales, 0);
     let cumulative = 0;
     const classified = items.map((item: any) => {
@@ -28,31 +26,15 @@ router.get('/', authenticate, (req: AuthRequest, res: Response) => {
       else if (percentage <= 90) category = 'B';
       return { ...item, percentage: total > 0 ? (item.total_sales / total) * 100 : 0, cumulative_percentage: percentage, category };
     });
-
-    res.json({
-      items: classified,
-      a_count: classified.filter((i: any) => i.category === 'A').length,
-      b_count: classified.filter((i: any) => i.category === 'B').length,
-      c_count: classified.filter((i: any) => i.category === 'C').length
-    });
-  } catch (err) {
-    res.status(500).json({ error: (err as Error).message });
-  }
+    res.json({ items: classified, a_count: classified.filter((i: any) => i.category === 'A').length, b_count: classified.filter((i: any) => i.category === 'B').length, c_count: classified.filter((i: any) => i.category === 'C').length });
+  } catch (err) { res.status(500).json({ error: (err as Error).message }); }
 });
 
-router.get('/reorder', authenticate, (req: AuthRequest, res: Response) => {
+router.get('/reorder', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const db = getDatabase();
-    const reorder = db.prepare(`
-      SELECT i.id, i.name, i.current_quantity, i.min_quantity, i.max_quantity, i.selling_price
-      FROM items i
-      WHERE i.current_quantity <= i.min_quantity AND i.is_active = 1
-      ORDER BY (i.min_quantity - i.current_quantity) DESC
-    `).all();
+    const reorder = await query(`SELECT i.id, i.name, i.current_quantity, i.min_quantity, i.max_quantity, i.selling_price FROM items i WHERE i.current_quantity <= i.min_quantity AND i.is_active = 1 ORDER BY (i.min_quantity - i.current_quantity) DESC`);
     res.json(reorder);
-  } catch (err) {
-    res.status(500).json({ error: (err as Error).message });
-  }
+  } catch (err) { res.status(500).json({ error: (err as Error).message }); }
 });
 
 export default router;

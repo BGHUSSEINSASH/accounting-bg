@@ -1,116 +1,109 @@
 ﻿import { Router, Response } from 'express';
-import { getDatabase } from '../config/database';
+import { query, queryOne } from '../config/database';
 import { authenticate } from '../middleware/auth';
 import { AuthRequest } from '../types';
 
 const router = Router();
 router.use(authenticate);
 
-router.get('/stats', (_req: AuthRequest, res: Response) => {
+router.get('/stats', async (_req: AuthRequest, res: Response) => {
   try {
-    const db = getDatabase();
     const today = new Date().toISOString().split('T')[0];
     const monthStart = new Date().toISOString().split('T')[0].substring(0, 7) + '-01';
 
-    const todaySales = db.prepare("SELECT COALESCE(SUM(total), 0) as total, COUNT(*) as count FROM sales_invoices WHERE invoice_date = ?").get(today) as any;
-    const monthSales = db.prepare("SELECT COALESCE(SUM(total), 0) as total, COUNT(*) as count FROM sales_invoices WHERE invoice_date >= ?").get(monthStart) as any;
-    const totalClients = db.prepare("SELECT COUNT(*) as count FROM clients WHERE is_active = 1").get() as any;
-    const totalItems = db.prepare("SELECT COUNT(*) as count FROM items WHERE is_active = 1").get() as any;
-    const lowStockItems = db.prepare("SELECT COUNT(*) as count FROM items WHERE is_active = 1 AND current_quantity <= min_quantity").get() as any;
-    const todayAttendance = db.prepare("SELECT COUNT(*) as count FROM attendance WHERE date = ?").get(today) as any;
-    const pendingInvoices = db.prepare("SELECT COUNT(*) as count, COALESCE(SUM(remaining_amount), 0) as total FROM sales_invoices WHERE payment_status IN ('unpaid', 'partial')").get() as any;
-    const activeDoctors = db.prepare("SELECT COUNT(*) as count FROM doctors WHERE is_active = 1").get() as any;
+    const todaySales = await queryOne("SELECT COALESCE(SUM(total), 0) as total, COUNT(*) as count FROM sales_invoices WHERE invoice_date = ?", [today]) as any;
+    const monthSales = await queryOne("SELECT COALESCE(SUM(total), 0) as total, COUNT(*) as count FROM sales_invoices WHERE invoice_date >= ?", [monthStart]) as any;
+    const totalClients = await queryOne("SELECT COUNT(*) as count FROM clients WHERE is_active = 1") as any;
+    const totalItems = await queryOne("SELECT COUNT(*) as count FROM items WHERE is_active = 1") as any;
+    const lowStockItems = await queryOne("SELECT COUNT(*) as count FROM items WHERE is_active = 1 AND current_quantity <= min_quantity") as any;
+    const todayAttendance = await queryOne("SELECT COUNT(*) as count FROM attendance WHERE date = ?", [today]) as any;
+    const pendingInvoices = await queryOne("SELECT COUNT(*) as count, COALESCE(SUM(remaining_amount), 0) as total FROM sales_invoices WHERE payment_status IN ('unpaid', 'partial')") as any;
+    const activeDoctors = await queryOne("SELECT COUNT(*) as count FROM doctors WHERE is_active = 1") as any;
 
     res.json({
-      today_sales: todaySales.total,
-      today_sales_count: todaySales.count,
-      month_sales: monthSales.total,
-      month_sales_count: monthSales.count,
-      total_clients: totalClients.count,
-      total_items: totalItems.count,
-      low_stock_items: lowStockItems.count,
-      today_attendance: todayAttendance.count,
-      pending_invoices: pendingInvoices.count,
-      pending_amount: pendingInvoices.total,
-      active_doctors: activeDoctors.count
+      today_sales: todaySales?.total,
+      today_sales_count: todaySales?.count,
+      month_sales: monthSales?.total,
+      month_sales_count: monthSales?.count,
+      total_clients: totalClients?.count,
+      total_items: totalItems?.count,
+      low_stock_items: lowStockItems?.count,
+      today_attendance: todayAttendance?.count,
+      pending_invoices: pendingInvoices?.count,
+      pending_amount: pendingInvoices?.total,
+      active_doctors: activeDoctors?.count
     });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
-router.get('/recent-sales', (_req: AuthRequest, res: Response) => {
+router.get('/recent-sales', async (_req: AuthRequest, res: Response) => {
   try {
-    const db = getDatabase();
-    const sales = db.prepare(`SELECT si.id, si.invoice_number, si.total, si.invoice_date, si.payment_status, c.name as client_name
-      FROM sales_invoices si LEFT JOIN clients c ON si.client_id = c.id ORDER BY si.created_at DESC LIMIT 10`).all();
+    const sales = await query(`SELECT si.id, si.invoice_number, si.total, si.invoice_date, si.payment_status, c.name as client_name
+      FROM sales_invoices si LEFT JOIN clients c ON si.client_id = c.id ORDER BY si.created_at DESC LIMIT 10`);
     res.json(sales);
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
-router.get('/monthly-sales', (_req: AuthRequest, res: Response) => {
+router.get('/monthly-sales', async (_req: AuthRequest, res: Response) => {
   try {
-    const db = getDatabase();
-    const data = db.prepare(`SELECT strftime('%Y-%m', invoice_date) as month, COUNT(*) as count, SUM(total) as total
-      FROM sales_invoices WHERE invoice_date >= date('now', '-12 months') GROUP BY month ORDER BY month ASC`).all();
+    const data = await query(`SELECT TO_CHAR(invoice_date, 'YYYY-MM') as month, COUNT(*) as count, SUM(total) as total
+      FROM sales_invoices WHERE invoice_date >= NOW() - INTERVAL '12 months' GROUP BY month ORDER BY month ASC`);
     res.json(data);
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
-router.get('/top-sales-reps', (_req: AuthRequest, res: Response) => {
+router.get('/top-sales-reps', async (_req: AuthRequest, res: Response) => {
   try {
-    const db = getDatabase();
     const monthStart = new Date().toISOString().split('T')[0].substring(0, 7) + '-01';
-    const reps = db.prepare(`SELECT u.id, u.full_name, COUNT(si.id) as sales_count, COALESCE(SUM(si.total), 0) as total_sales
+    const reps = await query(`SELECT u.id, u.full_name, COUNT(si.id) as sales_count, COALESCE(SUM(si.total), 0) as total_sales
       FROM users u LEFT JOIN sales_invoices si ON si.sales_rep_id = u.id AND si.invoice_date >= ?
-      WHERE u.role = 'sales_rep' GROUP BY u.id, u.full_name ORDER BY total_sales DESC`).all(monthStart);
+      WHERE u.role = 'sales_rep' GROUP BY u.id, u.full_name ORDER BY total_sales DESC`, [monthStart]);
     res.json(reps);
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
-router.get('/sales-trend', (_req: AuthRequest, res: Response) => {
+router.get('/sales-trend', async (_req: AuthRequest, res: Response) => {
   try {
-    const db = getDatabase();
-    const sales = db.prepare(`
+    const sales = await query(`
       SELECT DATE(created_at) as date, COUNT(*) as count, COALESCE(SUM(total), 0) as total
       FROM sales_invoices
-      WHERE created_at >= DATE('now', '-30 days')
+      WHERE created_at >= NOW() - INTERVAL '30 days'
       GROUP BY DATE(created_at)
       ORDER BY date
-    `).all();
+    `);
     res.json(sales);
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
-router.get('/yearly-comparison', (_req: AuthRequest, res: Response) => {
+router.get('/yearly-comparison', async (_req: AuthRequest, res: Response) => {
   try {
-    const db = getDatabase();
-    const currentYear = db.prepare(`
-      SELECT strftime('%m', created_at) as month, COALESCE(SUM(total), 0) as total
+    const currentYear = await query(`
+      SELECT TO_CHAR(created_at, 'MM') as month, COALESCE(SUM(total), 0) as total
       FROM sales_invoices
-      WHERE strftime('%Y', created_at) = strftime('%Y', 'now')
-      GROUP BY strftime('%m', created_at)
+      WHERE EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM NOW())
+      GROUP BY TO_CHAR(created_at, 'MM')
       ORDER BY month
-    `).all();
-    const lastYear = db.prepare(`
-      SELECT strftime('%m', created_at) as month, COALESCE(SUM(total), 0) as total
+    `);
+    const lastYear = await query(`
+      SELECT TO_CHAR(created_at, 'MM') as month, COALESCE(SUM(total), 0) as total
       FROM sales_invoices
-      WHERE strftime('%Y', created_at) = strftime('%Y', 'now', '-1 year')
-      GROUP BY strftime('%m', created_at)
+      WHERE EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM NOW()) - 1
+      GROUP BY TO_CHAR(created_at, 'MM')
       ORDER BY month
-    `).all();
+    `);
     res.json({ currentYear, lastYear });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
-router.get('/predictive', (_req: AuthRequest, res: Response) => {
+router.get('/predictive', async (_req: AuthRequest, res: Response) => {
   try {
-    const db = getDatabase();
-    const monthlyTotals = db.prepare(`
-      SELECT strftime('%Y-%m', created_at) as month, COALESCE(SUM(total), 0) as total
+    const monthlyTotals = await query(`
+      SELECT TO_CHAR(created_at, 'YYYY-MM') as month, COALESCE(SUM(total), 0) as total
       FROM sales_invoices
-      WHERE created_at >= DATE('now', '-6 months')
-      GROUP BY strftime('%Y-%m', created_at)
+      WHERE created_at >= NOW() - INTERVAL '6 months'
+      GROUP BY TO_CHAR(created_at, 'YYYY-MM')
       ORDER BY month
-    `).all() as any[];
+    `) as any[];
 
     let prediction = null;
     let growthRate = 0;
@@ -125,19 +118,16 @@ router.get('/predictive', (_req: AuthRequest, res: Response) => {
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
-router.get('/alerts', (_req: AuthRequest, res: Response) => {
+router.get('/alerts', async (_req: AuthRequest, res: Response) => {
   try {
-    const db = getDatabase();
-    const lowStock = db.prepare(`
+    const lowStock = await query(`
       SELECT id, name, current_quantity as quantity, min_quantity FROM items WHERE current_quantity <= min_quantity LIMIT 10
-    `).all();
-    const pendingInvoices = db.prepare(`
+    `);
+    const pendingInvoices = await query(`
       SELECT id, invoice_number, total FROM sales_invoices WHERE payment_status = 'unpaid' LIMIT 10
-    `).all();
+    `);
     res.json({ lowStock, pendingInvoices });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 export default router;
-
-

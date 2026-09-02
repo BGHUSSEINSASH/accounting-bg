@@ -4,8 +4,10 @@ import { useTranslation } from '../../i18n/context';
 import { formatCurrency, formatDate } from '../../utils/format';
 
 interface InvoiceData {
+  id?: number;
   invoice_number?: string;
   invoice_date?: string;
+  expense_date?: string;
   client_name?: string;
   client_phone?: string;
   client_address?: string;
@@ -47,7 +49,7 @@ const companyInfo = {
 };
 
 function generateSmallReceiptHtml(data: InvoiceData): string {
-  const itemsHtml = data.items.map(item => `
+  const itemsHtml = (data.items || []).map(item => `
     <tr>
       <td style="text-align:right;padding:2px 0">${item.item_name}</td>
       <td style="text-align:center;padding:2px 0">${item.quantity}</td>
@@ -97,12 +99,12 @@ function generateSmallReceiptHtml(data: InvoiceData): string {
     <tbody>${itemsHtml}</tbody>
   </table>
   <table class="totals">
-    <tr><td><strong>المجموع الفرعي:</strong></td><td style="text-align:left">${formatCurrency(data.subtotal)}</td></tr>
-    ${data.discount > 0 ? `<tr><td><strong>الخصم:</strong></td><td style="text-align:left">${formatCurrency(data.discount)}</td></tr>` : ''}
-    ${data.tax > 0 ? `<tr><td><strong>الضريبة:</strong></td><td style="text-align:left">${formatCurrency(data.tax)}</td></tr>` : ''}
-    <tr class="grand"><td><strong>الإجمالي الكلي:</strong></td><td style="text-align:left">${formatCurrency(data.total)}</td></tr>
-    <tr><td><strong>المدفوع:</strong></td><td style="text-align:left">${formatCurrency(data.paid_amount)}</td></tr>
-    ${data.remaining_amount > 0 ? `<tr><td><strong>المتبقي:</strong></td><td style="text-align:left">${formatCurrency(data.remaining_amount)}</td></tr>` : ''}
+    <tr><td><strong>المجموع الفرعي:</strong></td><td style="text-align:left">${formatCurrency(data.subtotal ?? 0)}</td></tr>
+    ${(data.discount ?? 0) > 0 ? `<tr><td><strong>الخصم:</strong></td><td style="text-align:left">${formatCurrency(data.discount ?? 0)}</td></tr>` : ''}
+    ${(data.tax ?? 0) > 0 ? `<tr><td><strong>الضريبة:</strong></td><td style="text-align:left">${formatCurrency(data.tax ?? 0)}</td></tr>` : ''}
+    <tr class="grand"><td><strong>الإجمالي الكلي:</strong></td><td style="text-align:left">${formatCurrency(data.total ?? 0)}</td></tr>
+    <tr><td><strong>المدفوع:</strong></td><td style="text-align:left">${formatCurrency(data.paid_amount ?? 0)}</td></tr>
+    ${(data.remaining_amount ?? 0) > 0 ? `<tr><td><strong>المتبقي:</strong></td><td style="text-align:left">${formatCurrency(data.remaining_amount ?? 0)}</td></tr>` : ''}
   </table>
   ${data.notes ? `<div style="margin-bottom:8px;font-size:10px;padding:4px;background:#f5f5f5;border-radius:4px"><strong>ملاحظات:</strong> ${data.notes}</div>` : ''}
   <div class="footer">
@@ -114,7 +116,7 @@ function generateSmallReceiptHtml(data: InvoiceData): string {
 }
 
 function generateLargeInvoiceHtml(data: InvoiceData): string {
-  const itemsHtml = data.items.map(item => `
+  const itemsHtml = (data.items || []).map(item => `
     <tr>
       <td style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd">${item.item_name}</td>
       <td style="text-align:center;padding:6px 8px;border-bottom:1px solid #ddd">${item.quantity}</td>
@@ -204,12 +206,12 @@ function generateLargeInvoiceHtml(data: InvoiceData): string {
   <div class="summary-section">
     <div class="summary-box">
       <table>
-        <tr><td style="text-align:right">المجموع الفرعي</td><td style="text-align:left;direction:ltr">${formatCurrency(data.subtotal)}</td></tr>
-        ${data.discount > 0 ? `<tr><td style="text-align:right">الخصم</td><td style="text-align:left;direction:ltr;color:#e53e3e">- ${formatCurrency(data.discount)}</td></tr>` : ''}
-        ${data.tax > 0 ? `<tr><td style="text-align:right">الضريبة</td><td style="text-align:left;direction:ltr">+ ${formatCurrency(data.tax)}</td></tr>` : ''}
-        <tr class="grand-total"><td style="text-align:right">الإجمالي الكلي</td><td style="text-align:left;direction:ltr">${formatCurrency(data.total)}</td></tr>
-        <tr><td style="text-align:right;border-top:1px solid #ddd;padding-top:4px">المدفوع</td><td style="text-align:left;direction:ltr;border-top:1px solid #ddd;padding-top:4px">${formatCurrency(data.paid_amount)}</td></tr>
-        ${data.remaining_amount > 0 ? `<tr><td style="text-align:right">المتبقي</td><td style="text-align:left;direction:ltr;color:#e53e3e">${formatCurrency(data.remaining_amount)}</td></tr>` : ''}
+        <tr><td style="text-align:right">المجموع الفرعي</td><td style="text-align:left;direction:ltr">${formatCurrency(data.subtotal ?? 0)}</td></tr>
+        ${(data.discount ?? 0) > 0 ? `<tr><td style="text-align:right">الخصم</td><td style="text-align:left;direction:ltr;color:#e53e3e">- ${formatCurrency(data.discount ?? 0)}</td></tr>` : ''}
+        ${(data.tax ?? 0) > 0 ? `<tr><td style="text-align:right">الضريبة</td><td style="text-align:left;direction:ltr">+ ${formatCurrency(data.tax ?? 0)}</td></tr>` : ''}
+        <tr class="grand-total"><td style="text-align:right">الإجمالي الكلي</td><td style="text-align:left;direction:ltr">${formatCurrency(data.total ?? 0)}</td></tr>
+        <tr><td style="text-align:right;border-top:1px solid #ddd;padding-top:4px">المدفوع</td><td style="text-align:left;direction:ltr;border-top:1px solid #ddd;padding-top:4px">${formatCurrency(data.paid_amount ?? 0)}</td></tr>
+        ${(data.remaining_amount ?? 0) > 0 ? `<tr><td style="text-align:right">المتبقي</td><td style="text-align:left;direction:ltr;color:#e53e3e">${formatCurrency(data.remaining_amount ?? 0)}</td></tr>` : ''}
       </table>
     </div>
   </div>

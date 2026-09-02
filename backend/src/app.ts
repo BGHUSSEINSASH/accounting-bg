@@ -143,14 +143,13 @@ if (fs.existsSync(frontendDist)) {
 // i18n middleware
 app.use(i18nMiddleware);
 
-// Initialize database
-try {
-  initializeDatabase();
-  logCloudProviderWarning();
-} catch (err) {
-  logger.error('Database initialization failed', { error: (err as Error).message });
-  process.exit(1);
-}
+// Initialize database (async for PostgreSQL)
+initializeDatabase()
+  .then(() => { logCloudProviderWarning(); })
+  .catch((err) => {
+    logger.error('Database initialization failed', { error: (err as Error).message });
+    process.exit(1);
+  });
 
 // Swagger
 const swaggerSpec = swaggerJsdoc({

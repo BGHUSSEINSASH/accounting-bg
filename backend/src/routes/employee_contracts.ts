@@ -1,55 +1,57 @@
 import { Router, Response } from 'express';
-import { getDatabase } from '../config/database';
+import { query, queryOne, execute, logActivityAsync } from '../config/database';
 import { authenticate } from '../middleware/auth';
 import { AuthRequest } from '../types';
-import { logActivity } from '../utils/helpers';
 
 const router = Router();
 router.use(authenticate);
 
-router.get('/', (req: AuthRequest, res: Response) => {
+router.get('/', async (req: AuthRequest, res: Response) => {
   try {
-    const db = getDatabase();
     const { page = 1, limit = 20, status, user_id } = req.query;
     const offset = (Number(page) - 1) * Number(limit);
-    let query = `SELECT ec.*, u.full_name FROM employee_contracts ec JOIN users u ON ec.user_id = u.id WHERE 1=1`;
+    let sql = `SELECT ec.*, u.full_name FROM employee_contracts ec JOIN users u ON ec.user_id = u.id WHERE 1=1`;
     const params: any[] = [];
-    if (status) { query += ` AND ec.status = ?`; params.push(status); }
-    if (user_id) { query += ` AND ec.user_id = ?`; params.push(user_id); }
-    const total = (db.prepare(query.replace('ec.*, u.full_name', 'COUNT(*) as total')).get(...params) as any).total;
-    query += ` ORDER BY ec.created_at DESC LIMIT ? OFFSET ?`;
+    if (status) { sql += ` AND ec.status = ?`; params.push(status); }
+    if (user_id) { sql += ` AND ec.user_id = ?`; params.push(user_id); }
+    const countRow = await queryOne(sql.replace('ec.*, u.full_name', 'COUNT(*) as total'), params) as any;
+    const total = countRow?.total ?? 0;
+    sql += ` ORDER BY ec.created_at DESC LIMIT ? OFFSET ?`;
     params.push(Number(limit), offset);
-    const contracts = db.prepare(query).all(...params);
+    const contracts = await query(sql, params);
     res.json({ contracts, total, page: Number(page), limit: Number(limit) });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
-router.get('/:id', (req: AuthRequest, res: Response) => {
+router.get('/user/:userId', async (req: AuthRequest, res: Response) => {
   try {
-    const db = getDatabase();
-    const contract = db.prepare(`SELECT ec.*, u.full_name FROM employee_contracts ec JOIN users u ON ec.user_id = u.id WHERE ec.id = ?`).get(req.params.id);
+    const contract = await queryOne(`SELECT ec.*, u.full_name FROM employee_contracts ec JOIN users u ON ec.user_id = u.id WHERE ec.user_id = ? AND ec.status = 'active' ORDER BY ec.created_at DESC LIMIT 1`, [req.params.userId]);
+    res.json(contract || null);
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/:id', async (req: AuthRequest, res: Response) => {
+  try {
+    const contract = await queryOne(`SELECT ec.*, u.full_name FROM employee_contracts ec JOIN users u ON ec.user_id = u.id WHERE ec.id = ?`, [req.params.id]);
     if (!contract) return res.status(404).json({ error: 'Contract not found' });
     res.json(contract);
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
-router.post('/', (req: AuthRequest, res: Response) => {
+router.post('/', async (req: AuthRequest, res: Response) => {
   try {
     const { user_id, contract_type, start_date, end_date, basic_salary, housing_allowance, transportation_allowance, other_allowances, insurance_deduction, contract_file, status } = req.body;
-    const db = getDatabase();
     const otherAllowancesStr = other_allowances ? JSON.stringify(other_allowances) : null;
-    const result = db.prepare(
-      `INSERT INTO employee_contracts (user_id, contract_type, start_date, end_date, basic_salary, housing_allowance, transportation_allowance, other_allowances, insurance_deduction, contract_file, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(user_id, contract_type, start_date || null, end_date || null, basic_salary || 0, housing_allowance || 0, transportation_allowance || 0, otherAllowancesStr, insurance_deduction || 0, contract_file || null, status || 'active');
-    logActivity(req.user!.id, 'create_contract', 'employee_contracts', result.lastInsertRowid as number);
-    res.status(201).json({ id: result.lastInsertRowid, message: 'Contract created' });
+    const result = await execute(`INSERT INTO employee_contracts (user_id, contract_type, start_date, end_date, basic_salary, housing_allowance, transportation_allowance, other_allowances, insurance_deduction, contract_file, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [user_id, contract_type, start_date || null, end_date || null, basic_salary || 0, housing_allowance || 0, transportation_allowance || 0, otherAllowancesStr, insurance_deduction || 0, contract_file || null, status || 'active']);
+    void logActivityAsync(req.user!.id, 'create_contract', 'employee_contracts', result.id as number);
+    res.status(201).json({ id: result.id, message: 'Contract created' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
-router.put('/:id', (req: AuthRequest, res: Response) => {
+router.put('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const { contract_type, start_date, end_date, basic_salary, housing_allowance, transportation_allowance, other_allowances, insurance_deduction, contract_file, status, termination_date, termination_reason } = req.body;
-    const db = getDatabase();
     const otherAllowancesStr = other_allowances ? JSON.stringify(other_allowances) : undefined;
     const updates: string[] = [];
     const params: any[] = [];
@@ -64,33 +66,22 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
     if (contract_file !== undefined) { updates.push(`contract_file = ?`); params.push(contract_file); }
     if (status !== undefined) { updates.push(`status = ?`); params.push(status); }
     if (status === 'terminated') {
-      updates.push(`termination_date = ?`);
-      params.push(termination_date || new Date().toISOString().split('T')[0]);
-      updates.push(`termination_reason = ?`);
-      params.push(termination_reason || null);
+      updates.push(`termination_date = ?`); params.push(termination_date || new Date().toISOString().split('T')[0]);
+      updates.push(`termination_reason = ?`); params.push(termination_reason || null);
     }
     if (updates.length === 0) return res.status(400).json({ error: 'No fields to update' });
     params.push(req.params.id);
-    db.prepare(`UPDATE employee_contracts SET ${updates.join(', ')} WHERE id = ?`).run(...params);
-    logActivity(req.user!.id, 'update_contract', 'employee_contracts', Number(req.params.id));
+    await execute(`UPDATE employee_contracts SET ${updates.join(', ')} WHERE id = ?`, params);
+    void logActivityAsync(req.user!.id, 'update_contract', 'employee_contracts', Number(req.params.id));
     res.json({ message: 'Contract updated' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
-router.delete('/:id', (req: AuthRequest, res: Response) => {
+router.delete('/:id', async (req: AuthRequest, res: Response) => {
   try {
-    const db = getDatabase();
-    db.prepare(`DELETE FROM employee_contracts WHERE id = ?`).run(req.params.id);
-    logActivity(req.user!.id, 'delete_contract', 'employee_contracts', Number(req.params.id));
+    await execute(`DELETE FROM employee_contracts WHERE id = ?`, [req.params.id]);
+    void logActivityAsync(req.user!.id, 'delete_contract', 'employee_contracts', Number(req.params.id));
     res.json({ message: 'Contract deleted' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
-});
-
-router.get('/user/:userId', (req: AuthRequest, res: Response) => {
-  try {
-    const db = getDatabase();
-    const contract = db.prepare(`SELECT ec.*, u.full_name FROM employee_contracts ec JOIN users u ON ec.user_id = u.id WHERE ec.user_id = ? AND ec.status = 'active' ORDER BY ec.created_at DESC LIMIT 1`).get(req.params.userId);
-    res.json(contract || null);
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 

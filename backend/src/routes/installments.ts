@@ -1,65 +1,54 @@
 import { Router, Response } from 'express';
-import { getDatabase } from '../config/database';
+import { query, queryOne, execute, withTransaction } from '../config/database';
 import { authenticate } from '../middleware/auth';
 import { AuthRequest } from '../types';
 
 const router = Router();
 
-router.post('/', authenticate, (req: AuthRequest, res: Response) => {
+router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const db = getDatabase();
     const { invoice_id, client_id, total_amount, down_payment, installment_count, interval_days } = req.body;
     const remaining = total_amount - down_payment;
     const installment_amount = remaining / installment_count;
-    const trx = db.transaction(() => {
-      const result = db.prepare(`INSERT INTO installment_plans (invoice_id, client_id, total_amount, down_payment, remaining_amount, installment_count, installment_amount, interval_days, start_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, DATE('now'))`).run(invoice_id, client_id, total_amount, down_payment, remaining, installment_count, installment_amount, interval_days || 30);
-      const planId = result.lastInsertRowid;
-      const insertPayment = db.prepare(`INSERT INTO installment_payments (plan_id, due_date, amount) VALUES (?, DATE('now', '+' || (? * ?) || ' days'), ?)`);
+    const planId = await withTransaction(async (client) => {
+      const result = await client.query(`INSERT INTO installment_plans (invoice_id, client_id, total_amount, down_payment, remaining_amount, installment_count, installment_amount, interval_days, start_date) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW()) RETURNING id`,
+        [invoice_id, client_id, total_amount, down_payment, remaining, installment_count, installment_amount, interval_days || 30]);
+      const pid = result.rows[0].id;
       for (let i = 1; i <= installment_count; i++) {
-        insertPayment.run(planId, i, interval_days || 30, installment_amount);
+        const dueDate = new Date(Date.now() + i * (interval_days || 30) * 86400000).toISOString().split('T')[0];
+        await client.query(`INSERT INTO installment_payments (plan_id, due_date, amount) VALUES ($1,$2,$3)`, [pid, dueDate, installment_amount]);
       }
-      return planId;
+      return pid;
     });
-    const planId = trx();
     res.json({ id: planId });
-  } catch (err) {
-    res.status(500).json({ error: (err as Error).message });
-  }
+  } catch (err) { res.status(500).json({ error: (err as Error).message }); }
 });
 
-router.get('/client/:clientId', authenticate, (req: AuthRequest, res: Response) => {
+router.get('/client/:clientId', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const db = getDatabase();
-    const plans = db.prepare(`SELECT ip.*, si.invoice_number FROM installment_plans ip JOIN sales_invoices si ON si.id = ip.invoice_id WHERE ip.client_id = ? ORDER BY ip.created_at DESC`).all(req.params.clientId);
+    const plans = await query(`SELECT ip.*, si.invoice_number FROM installment_plans ip JOIN sales_invoices si ON si.id = ip.invoice_id WHERE ip.client_id = ? ORDER BY ip.created_at DESC`, [req.params.clientId]);
     res.json(plans);
-  } catch (err) {
-    res.status(500).json({ error: (err as Error).message });
-  }
+  } catch (err) { res.status(500).json({ error: (err as Error).message }); }
 });
 
-router.get('/:planId/payments', authenticate, (req: AuthRequest, res: Response) => {
+router.get('/:planId/payments', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const db = getDatabase();
-    const payments = db.prepare('SELECT * FROM installment_payments WHERE plan_id = ? ORDER BY due_date').all(req.params.planId);
+    const payments = await query('SELECT * FROM installment_payments WHERE plan_id = ? ORDER BY due_date', [req.params.planId]);
     res.json(payments);
-  } catch (err) {
-    res.status(500).json({ error: (err as Error).message });
-  }
+  } catch (err) { res.status(500).json({ error: (err as Error).message }); }
 });
 
-router.post('/:planId/pay', authenticate, (req: AuthRequest, res: Response) => {
+router.post('/:planId/pay', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const db = getDatabase();
     const { payment_method, notes } = req.body;
-    const result = db.prepare(`UPDATE installment_payments SET paid_date = DATE('now'), status = 'paid', payment_method = ?, notes = ? WHERE plan_id = ? AND status = 'pending' ORDER BY due_date LIMIT 1`).run(payment_method, notes, req.params.planId);
-    const pending = db.prepare("SELECT COUNT(*) as cnt FROM installment_payments WHERE plan_id = ? AND status != 'paid'").get(req.params.planId) as any;
-    if (pending.cnt === 0) {
-      db.prepare("UPDATE installment_plans SET status = 'completed' WHERE id = ?").run(req.params.planId);
+    const result = await execute(`UPDATE installment_payments SET paid_date = NOW(), status = 'paid', payment_method = ?, notes = ? WHERE plan_id = ? AND status = 'pending' AND due_date = (SELECT MIN(due_date) FROM installment_payments WHERE plan_id = ? AND status = 'pending')`,
+      [payment_method, notes, req.params.planId, req.params.planId]);
+    const pendingRow = await queryOne("SELECT COUNT(*) as cnt FROM installment_payments WHERE plan_id = ? AND status != 'paid'", [req.params.planId]) as any;
+    if (pendingRow?.cnt === 0) {
+      await execute("UPDATE installment_plans SET status = 'completed' WHERE id = ?", [req.params.planId]);
     }
-    res.json({ success: true, changes: result.changes });
-  } catch (err) {
-    res.status(500).json({ error: (err as Error).message });
-  }
+    res.json({ success: true, changes: result.rowCount });
+  } catch (err) { res.status(500).json({ error: (err as Error).message }); }
 });
 
 export default router;
