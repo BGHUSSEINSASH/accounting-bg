@@ -65,3 +65,5 @@ backend/certs/
 mobile/.expo/
 mobile/android/
 mobile/ios/
+
+.vercel/
