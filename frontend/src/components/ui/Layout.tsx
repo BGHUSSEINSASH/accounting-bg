@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, ShoppingCart, Package,
   Stethoscope, Clock, BarChart3, Building2, UserCircle,
   LogOut, Menu, ChevronDown, X, Wallet,
-  Receipt, TrendingUp, Settings, Moon, Sun,
+  Receipt, Settings, Moon, Sun,
   Store, Shield, Bell,
 } from 'lucide-react';
 import { authStore } from '../../store/authStore';
@@ -133,7 +133,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   };
 
   const isActive = (path: string) => location.pathname === path;
-  const isChildActive = (children: { path: string }[]) => children.some(c => location.pathname === c.path);
+  const isChildActive = (children: { path: string }[]) => children.some(c => location.pathname.startsWith(c.path));
 
   const handleLogout = () => {
     authStore.clearAuth();
@@ -154,106 +154,127 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     '': '',
   };
 
-  return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 transition-colors overflow-hidden" dir="rtl">
-      {/* Sidebar — always visible on lg, slide-in on mobile */}
-      <aside
-        className={`
-          flex-shrink-0 w-64 h-full
-          bg-white dark:bg-gray-800
-          border-l border-gray-200 dark:border-gray-700
-          flex flex-col
-          transition-transform duration-200 ease-in-out
-          lg:translate-x-0 lg:relative lg:z-auto
-          fixed inset-y-0 right-0 z-50
-          ${sidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
-        `}
-      >
-        {/* Logo */}
-        <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <Building2 className="w-6 h-6 text-primary-600" />
-            <span className="font-bold text-lg dark:text-white">{t('auth.login_title')}</span>
-          </div>
-          <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
-            <X className="w-5 h-5 dark:text-white" />
-          </button>
+  // Sidebar nav content — shared between desktop and mobile
+  const SidebarContent = () => (
+    <>
+      {/* Logo */}
+      <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <Building2 className="w-6 h-6 text-primary-600" />
+          <span className="font-bold text-base dark:text-white">{t('auth.login_title')}</span>
         </div>
+        <button
+          onClick={() => setSidebarOpen(false)}
+          className="lg:hidden p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+        >
+          <X className="w-4 h-4 dark:text-white" />
+        </button>
+      </div>
 
-        {/* Nav */}
-        <nav className="flex-1 overflow-y-auto p-3 space-y-0.5">
-          {filteredMenu.map((item: any) => {
-            if ('children' in item && item.children) {
-              const open = expandedMenus[item.label] !== undefined
-                ? expandedMenus[item.label]
-                : isChildActive(item.children);
-              return (
-                <div key={item.label}>
-                  <button
-                    onClick={() => toggleMenu(item.label)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors text-right ${
-                      isChildActive(item.children)
-                        ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 font-medium'
-                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                    }`}
-                  >
-                    <item.icon className="w-5 h-5 flex-shrink-0" />
-                    <span className="flex-1 text-right">{item.label}</span>
-                    <ChevronDown className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
-                  </button>
-                  {open && (
-                    <div className="mt-0.5 mb-1 mr-4 space-y-0.5 border-r-2 border-primary-100 dark:border-primary-800 pr-2">
-                      {item.children.map((child: any) => (
-                        <Link
-                          key={child.path}
-                          to={child.path}
-                          onClick={() => setSidebarOpen(false)}
-                          className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
-                            isActive(child.path)
-                              ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 font-medium'
-                              : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200'
-                          }`}
-                        >
-                          {child.label}
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            }
+      {/* Navigation */}
+      <nav className="flex-1 overflow-y-auto p-3 space-y-0.5">
+        {filteredMenu.map((item: any) => {
+          if ('children' in item && item.children) {
+            const open = expandedMenus[item.label] !== undefined
+              ? expandedMenus[item.label]
+              : isChildActive(item.children);
             return (
-              <Link
-                key={item.path}
-                to={item.path!}
-                onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                  isActive(item.path!)
-                    ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 font-medium'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                }`}
-              >
-                <item.icon className="w-5 h-5 flex-shrink-0" />
-                <span>{item.label}</span>
-              </Link>
+              <div key={item.label}>
+                <button
+                  onClick={() => toggleMenu(item.label)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                    isChildActive(item.children)
+                      ? 'bg-primary-50 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 font-medium'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  <item.icon className="w-5 h-5 flex-shrink-0" />
+                  <span className="flex-1 text-right">{item.label}</span>
+                  <ChevronDown className={`w-4 h-4 flex-shrink-0 transition-transform duration-150 ${open ? 'rotate-180' : ''}`} />
+                </button>
+                {open && (
+                  <div className="mt-0.5 mb-1 mr-4 space-y-0.5 border-r-2 border-primary-100 dark:border-primary-800 pr-2">
+                    {item.children.map((child: any) => (
+                      <Link
+                        key={child.path}
+                        to={child.path}
+                        onClick={() => setSidebarOpen(false)}
+                        className={`block px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                          isActive(child.path)
+                            ? 'bg-primary-50 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 font-medium'
+                            : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200'
+                        }`}
+                      >
+                        {child.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
             );
-          })}
-        </nav>
+          }
+          return (
+            <Link
+              key={item.path}
+              to={item.path!}
+              onClick={() => setSidebarOpen(false)}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                isActive(item.path!)
+                  ? 'bg-primary-50 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 font-medium'
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
+            >
+              <item.icon className="w-5 h-5 flex-shrink-0" />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+    </>
+  );
+
+  return (
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden" style={{ direction: 'rtl' }}>
+
+      {/* ====== DESKTOP SIDEBAR — always visible, part of flex row ====== */}
+      <aside
+        style={{ width: '256px', minWidth: '256px' }}
+        className="hidden lg:flex flex-col h-full bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700"
+      >
+        <SidebarContent />
       </aside>
 
-      {/* Mobile overlay */}
+      {/* ====== MOBILE SIDEBAR — fixed overlay ====== */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/30 z-40 lg:hidden"
+          className="fixed inset-0 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
+          style={{ backgroundColor: 'rgba(0,0,0,0.3)' }}
         />
       )}
+      <aside
+        className={`
+          fixed top-0 right-0 bottom-0 z-50 lg:hidden
+          flex flex-col
+          bg-white dark:bg-gray-800
+          border-l border-gray-200 dark:border-gray-700
+          transition-transform duration-200 ease-in-out
+          ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'}
+        `}
+        style={{ width: '256px' }}
+      >
+        <SidebarContent />
+      </aside>
 
-      {/* Main area */}
+      {/* ====== MAIN CONTENT ====== */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+
         {/* Header */}
-        <header className="h-16 flex-shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-4 lg:px-6">
-          {/* Mobile menu button */}
+        <header
+          className="flex-shrink-0 h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-4"
+          style={{ direction: 'rtl' }}
+        >
+          {/* Mobile menu toggle */}
           <button
             onClick={() => setSidebarOpen(true)}
             className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
@@ -261,40 +282,49 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <Menu className="w-5 h-5 dark:text-white" />
           </button>
 
-          {/* Header controls */}
-          <div className="flex items-center gap-2 ms-auto">
-            <div className="text-right hidden sm:block">
-              <p className="text-sm font-medium dark:text-white">{user?.full_name}</p>
+          {/* Right side controls */}
+          <div className="flex items-center gap-2 mr-auto lg:mr-0">
+            {/* User info */}
+            <div className="hidden sm:block text-right">
+              <p className="text-sm font-medium dark:text-white leading-tight">{user?.full_name}</p>
               <p className="text-xs text-gray-500 dark:text-gray-400">{roleLabel[user?.role || ''] || user?.role}</p>
             </div>
             <div className="w-9 h-9 bg-primary-100 dark:bg-primary-900 rounded-full flex items-center justify-center flex-shrink-0">
               <UserCircle className="w-6 h-6 text-primary-600 dark:text-primary-300" />
             </div>
+
+            {/* Theme toggle */}
             <button
               onClick={() => toggleTheme()}
               className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500 dark:text-gray-400"
-              title={isRtl ? 'تغيير الوضع' : 'Toggle theme'}
             >
               {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
-            <div className="px-2 py-1 text-xs font-medium text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-600 rounded-lg hidden sm:block">
+
+            {/* Currency */}
+            <span className="hidden sm:inline-block px-2 py-1 text-xs font-medium text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-600 rounded-lg">
               {symbol}
-            </div>
+            </span>
+
+            {/* Pending sync */}
             {pendingSyncCount > 0 && (
               <button
                 onClick={() => void flushSyncQueue()}
-                className="px-2 py-1 text-xs font-medium rounded-lg border border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-300 dark:bg-amber-900/20"
-                title="مزامنة العمليات المحلية"
+                className="px-2 py-1 text-xs font-medium rounded-lg border border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100"
               >
                 {pendingSyncCount} مزامنة
               </button>
             )}
+
+            {/* Language switcher */}
             <button
               onClick={() => setLanguage(language === 'ar' ? 'en' : language === 'en' ? 'ku' : 'ar')}
               className="px-2 py-1 text-xs font-medium hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-600"
             >
               {language === 'ar' ? 'EN' : language === 'en' ? 'KU' : 'AR'}
             </button>
+
+            {/* Logout */}
             <button
               onClick={handleLogout}
               className="p-2 hover:bg-red-50 dark:hover:bg-red-900/50 rounded-lg text-red-500 dark:text-red-400"
@@ -306,7 +336,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6" dir={isRtl ? 'rtl' : 'ltr'}>
+        <main
+          className="flex-1 overflow-y-auto p-4 lg:p-6"
+          style={{ direction: isRtl ? 'rtl' : 'ltr' }}
+        >
           {children}
         </main>
       </div>
