@@ -3,8 +3,11 @@
  * (نسخة مكيّفة من frontend/src/services/syncQueue.ts للـReact Native)
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import NetInfo from '@react-native-community/netinfo';
 import api from './api';
+
+type NetworkState = {
+  isConnected?: boolean | null;
+};
 
 const QUEUE_KEY = 'sync_queue_v1';
 
@@ -101,15 +104,19 @@ export async function flushQueue(): Promise<{ sent: number; failed: number }> {
 
 /** استمع لعودة الاتصال وامسح الطابور تلقائياً */
 export function startAutoFlush(): void {
-  try {
-    NetInfo.addEventListener(state => {
-      if (state.isConnected) {
-        flushQueue().then(({ sent }) => {
-          if (sent > 0) console.log(`[sync] flushed ${sent} queued operations`);
-        }).catch(() => {});
-      }
+  import('@react-native-community/netinfo')
+    .then(({ default: NetInfo }) => {
+      NetInfo.addEventListener((state: NetworkState) => {
+        if (state.isConnected) {
+          flushQueue().then(({ sent }) => {
+            if (sent > 0) console.log(`[sync] flushed ${sent} queued operations`);
+          }).catch(() => {});
+        }
+      });
+    })
+    .catch(() => {
+      // NetInfo غير مثبت — تجاهل
     });
-  } catch { /* NetInfo غير مثبت — تجاهل */ }
 }
 
 // تهيئة أولية

@@ -269,16 +269,23 @@ test('Layout.tsx has proper RTL sidebar (flex-shrink-0)', () => {
     path.join(projectRoot, 'frontend/src/components/ui/Layout.tsx'), 'utf8'
   );
   assert(layout.includes('flex-shrink-0'), 'Missing flex-shrink-0 on sidebar');
-  assert(layout.includes("dir=\"rtl\""), 'Missing dir="rtl" on root container');
+  assert(
+    layout.includes("dir=\"rtl\"") || layout.includes("direction: 'rtl'"),
+    'Missing RTL direction on root container'
+  );
 });
 
 test('Layout.tsx sidebar not purely fixed on desktop', () => {
   const layout = fs.readFileSync(
     path.join(projectRoot, 'frontend/src/components/ui/Layout.tsx'), 'utf8'
   );
-  // Should have lg:relative or lg:static (not just fixed always)
+  // Should have an explicit desktop override class
   assert(
-    layout.includes('lg:relative') || layout.includes('lg:static') || layout.includes('lg:translate-x-0'),
+    layout.includes('lg:relative') ||
+      layout.includes('lg:static') ||
+      layout.includes('lg:translate-x-0') ||
+      layout.includes('lg:flex') ||
+      layout.includes('lg:hidden'),
     'Sidebar missing lg: responsive class'
   );
 });

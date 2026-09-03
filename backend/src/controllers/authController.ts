@@ -5,7 +5,7 @@ export async function login(req: Request, res: Response, next: NextFunction) {
   try {
     const { username, password } = req.body;
     const ip = req.ip || req.socket.remoteAddress;
-    const result = authService.login(username, password, ip);
+    const result = await authService.login(username, password, ip);
     res.json(result);
   } catch (err) { next(err); }
 }
@@ -14,28 +14,28 @@ export async function refreshToken(req: Request, res: Response, next: NextFuncti
   try {
     const { refreshToken } = req.body;
     if (!refreshToken) { res.status(400).json({ error: 'Refresh token is required' }); return; }
-    const result = authService.refreshAccessToken(refreshToken);
+    const result = await authService.refreshAccessToken(refreshToken);
     res.json(result);
   } catch (err) { next(err); }
 }
 
 export async function logout(req: Request, res: Response, next: NextFunction) {
   try {
-    authService.logout(req.user!.id);
+    await authService.logout(req.user!.id);
     res.json({ message: 'Logged out successfully' });
   } catch (err) { next(err); }
 }
 
 export async function getProfile(req: Request, res: Response, next: NextFunction) {
   try {
-    const user = authService.getProfile(req.user!.id);
+    const user = await authService.getProfile(req.user!.id);
     res.json(user);
   } catch (err) { next(err); }
 }
 
 export async function updateProfile(req: Request, res: Response, next: NextFunction) {
   try {
-    const user = authService.updateProfile(req.user!.id, req.body);
+    const user = await authService.updateProfile(req.user!.id, req.body);
     res.json(user);
   } catch (err) { next(err); }
 }
@@ -50,14 +50,14 @@ export async function changePassword(req: Request, res: Response, next: NextFunc
 
 export async function listUsers(_req: Request, res: Response, next: NextFunction) {
   try {
-    const users = authService.listUsers();
+    const users = await authService.listUsers();
     res.json(users);
   } catch (err) { next(err); }
 }
 
 export async function createUser(req: Request, res: Response, next: NextFunction) {
   try {
-    const user = authService.createUser(req.body);
+    const user = await authService.createUser(req.body);
     res.status(201).json(user);
   } catch (err) { next(err); }
 }

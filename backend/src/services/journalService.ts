@@ -1,5 +1,13 @@
-import Database from 'better-sqlite3';
 import { generateCode } from '../utils/helpers';
+
+type DbLike = {
+  prepare: (sql: string) => {
+    get: (...params: any[]) => any;
+    all: (...params: any[]) => any[];
+    run: (...params: any[]) => { lastInsertRowid?: number | bigint };
+  };
+  transaction: (fn: () => void) => () => void;
+};
 
 export interface JournalItem {
   account_id?: number;
@@ -11,7 +19,7 @@ export interface JournalItem {
 }
 
 export interface CreateJournalEntryParams {
-  db: Database.Database;
+  db: DbLike;
   entry_date: string;
   description: string;
   reference_type?: string;
@@ -24,7 +32,7 @@ export interface CreateJournalEntryParams {
   is_posted?: number;
 }
 
-function resolveAccountId(db: Database.Database, item: JournalItem): number | null {
+function resolveAccountId(db: DbLike, item: JournalItem): number | null {
   if (item.account_id) return item.account_id;
   if (item.account_code) {
     const acc = db.prepare("SELECT id FROM accounts WHERE code = ? AND is_active = 1 LIMIT 1").get(item.account_code) as any;
@@ -33,7 +41,7 @@ function resolveAccountId(db: Database.Database, item: JournalItem): number | nu
   return null;
 }
 
-function validateAccounts(db: Database.Database, items: JournalItem[]): { resolved: Array<JournalItem & { _id: number }>; errors: string[] } {
+function validateAccounts(db: DbLike, items: JournalItem[]): { resolved: Array<JournalItem & { _id: number }>; errors: string[] } {
   const resolved = items.map(item => ({
     ...item,
     _id: resolveAccountId(db, item) as number,
@@ -48,7 +56,7 @@ function validateAccounts(db: Database.Database, items: JournalItem[]): { resolv
   return { resolved, errors };
 }
 
-export function getBankAccountCode(db: Database.Database, bankAccountId: number | null | undefined): string {
+export function getBankAccountCode(db: DbLike, bankAccountId: number | null | undefined): string {
   if (!bankAccountId) return '1.1.1';
   const ba = db.prepare("SELECT accounting_code FROM bank_accounts WHERE id = ? AND is_active = 1").get(bankAccountId) as any;
   if (ba && ba.accounting_code) {
@@ -96,7 +104,7 @@ export function createJournalEntry(params: CreateJournalEntryParams): number | n
   return entryId as number;
 }
 
-export function reverseJournalEntry(db: Database.Database, entryId: number | bigint, description?: string): number | null {
+export function reverseJournalEntry(db: DbLike, entryId: number | bigint, description?: string): number | null {
   const original = db.prepare("SELECT * FROM journal_entries WHERE id = ?").get(entryId) as any;
   if (!original) return null;
 
@@ -124,7 +132,7 @@ export function reverseJournalEntry(db: Database.Database, entryId: number | big
 }
 
 export function reverseJournalEntriesByReference(
-  db: Database.Database,
+  db: DbLike,
   reference_type: string,
   reference_id: number | bigint,
   description?: string

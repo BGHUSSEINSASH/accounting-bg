@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { getDatabase } from './database';
+import { execute, queryOne } from './database';
 
 const JWT_SECRET = process.env.JWT_SECRET || (() => { throw new Error('JWT_SECRET not set'); })();
 const REFRESH_SECRET = process.env.REFRESH_SECRET || (() => { throw new Error('REFRESH_SECRET not set'); })();
@@ -18,14 +18,14 @@ export function generateToken(payload: { id: number; role: string }): string {
   return jwt.sign({ ...payload, jti }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 }
 
-export function generateRefreshToken(userId: number): string {
+export async function generateRefreshToken(userId: number): Promise<string> {
   const jti = crypto.randomUUID();
   const refreshToken = jwt.sign({ id: userId, jti }, REFRESH_SECRET, { expiresIn: REFRESH_EXPIRES_IN });
 
-  const db = getDatabase();
-  db.prepare(
-    "INSERT INTO refresh_tokens (user_id, token_jti, expires_at) VALUES (?, ?, datetime('now', '+7 days'))"
-  ).run(userId, jti);
+  await execute(
+    "INSERT INTO refresh_tokens (user_id, token_jti, expires_at) VALUES (?, ?, NOW() + INTERVAL '7 days')",
+    [userId, jti]
+  );
 
   return refreshToken;
 }
@@ -38,14 +38,14 @@ export function verifyToken(token: string): TokenPayload | null {
   }
 }
 
-export function verifyRefreshToken(token: string): { id: number; jti: string } | null {
+export async function verifyRefreshToken(token: string): Promise<{ id: number; jti: string } | null> {
   try {
     const payload = jwt.verify(token, REFRESH_SECRET) as { id: number; jti: string };
 
-    const db = getDatabase();
-    const stored = db.prepare(
-      "SELECT id FROM refresh_tokens WHERE user_id = ? AND token_jti = ? AND revoked = 0 AND expires_at > datetime('now')"
-    ).get(payload.id, payload.jti);
+    const stored = await queryOne(
+      'SELECT id FROM refresh_tokens WHERE user_id = ? AND token_jti = ? AND revoked = 0 AND expires_at > NOW()',
+      [payload.id, payload.jti]
+    );
 
     if (!stored) return null;
     return payload;
@@ -54,12 +54,10 @@ export function verifyRefreshToken(token: string): { id: number; jti: string } |
   }
 }
 
-export function revokeRefreshToken(userId: number): void {
-  const db = getDatabase();
-  db.prepare('UPDATE refresh_tokens SET revoked = 1 WHERE user_id = ?').run(userId);
+export async function revokeRefreshToken(userId: number): Promise<void> {
+  await execute('UPDATE refresh_tokens SET revoked = 1 WHERE user_id = ?', [userId]);
 }
 
-export function revokeAllUserTokens(userId: number): void {
-  const db = getDatabase();
-  db.prepare('UPDATE refresh_tokens SET revoked = 1 WHERE user_id = ?').run(userId);
+export async function revokeAllUserTokens(userId: number): Promise<void> {
+  await execute('UPDATE refresh_tokens SET revoked = 1 WHERE user_id = ?', [userId]);
 }

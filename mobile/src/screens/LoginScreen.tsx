@@ -5,7 +5,11 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api, { setApiBase, loadApiBase } from '../services/api';
 
-export default function LoginScreen() {
+type LoginScreenProps = {
+  onLogin?: (user: any) => void;
+};
+
+export default function LoginScreen({ onLogin }: LoginScreenProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [serverUrl, setServerUrl] = useState('');
@@ -23,8 +27,8 @@ export default function LoginScreen() {
     try {
       if (serverUrl.trim()) await setApiBase(serverUrl.trim());
       const res = await api.post('/auth/login', { username: username.trim(), password });
-      const { login } = useAuth();
-      await login(res.data.user, res.data.token);
+      await AsyncStorage.setItem('token', res.data.token);
+      await AsyncStorage.setItem('user', JSON.stringify(res.data.user));
       onLogin?.(res.data.user);
     } catch (err: any) {
       const msg = err.response?.data?.error || err.message || 'فشل تسجيل الدخول';
