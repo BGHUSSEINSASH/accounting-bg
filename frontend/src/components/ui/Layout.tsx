@@ -155,93 +155,158 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-      {/* Sidebar */}
-      <aside className={`fixed inset-y-0 right-0 z-50 w-64 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 transform transition-transform duration-200 ease-in-out ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'} lg:translate-x-0 lg:static lg:inset-auto`}>
-        <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-gray-700">
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 transition-colors overflow-hidden" dir="rtl">
+      {/* Sidebar — always visible on lg, slide-in on mobile */}
+      <aside
+        className={`
+          flex-shrink-0 w-64 h-full
+          bg-white dark:bg-gray-800
+          border-l border-gray-200 dark:border-gray-700
+          flex flex-col
+          transition-transform duration-200 ease-in-out
+          lg:translate-x-0 lg:relative lg:z-auto
+          fixed inset-y-0 right-0 z-50
+          ${sidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
+        `}
+      >
+        {/* Logo */}
+        <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
           <div className="flex items-center gap-2">
             <Building2 className="w-6 h-6 text-primary-600" />
             <span className="font-bold text-lg dark:text-white">{t('auth.login_title')}</span>
           </div>
-          <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1">
-            <X className="w-5 h-5" />
+          <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
+            <X className="w-5 h-5 dark:text-white" />
           </button>
         </div>
 
-        <nav className="p-4 space-y-1 overflow-y-auto h-[calc(100vh-4rem)]">
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto p-3 space-y-0.5">
           {filteredMenu.map((item: any) => {
             if ('children' in item && item.children) {
-              const open = expandedMenus[item.label] ?? isChildActive(item.children);
+              const open = expandedMenus[item.label] !== undefined
+                ? expandedMenus[item.label]
+                : isChildActive(item.children);
               return (
-                  <div key={item.label}>
-                    <button onClick={() => toggleMenu(item.label)} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${isChildActive(item.children) ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 font-medium' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
-                      <item.icon className="w-5 h-5" />
-                      <span className="flex-1 text-right">{item.label}</span>
-                      <ChevronDown className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`} />
-                    </button>
-                    {open && (
-                      <div className="mr-8 mt-1 space-y-1">
-                        {item.children.map((child: any) => (
-                          <Link key={child.path} to={child.path} onClick={() => setSidebarOpen(false)} className={`block px-3 py-2 rounded-lg text-sm transition-colors ${isActive(child.path) ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 font-medium' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
-                            {child.label}
-                          </Link>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              }
-              return (
-                <Link key={item.path} to={item.path!} onClick={() => setSidebarOpen(false)} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${isActive(item.path!) ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 font-medium' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
-                  <item.icon className="w-5 h-5" />
-                  <span>{item.label}</span>
-                </Link>
+                <div key={item.label}>
+                  <button
+                    onClick={() => toggleMenu(item.label)}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors text-right ${
+                      isChildActive(item.children)
+                        ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 font-medium'
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    <item.icon className="w-5 h-5 flex-shrink-0" />
+                    <span className="flex-1 text-right">{item.label}</span>
+                    <ChevronDown className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+                  </button>
+                  {open && (
+                    <div className="mt-0.5 mb-1 mr-4 space-y-0.5 border-r-2 border-primary-100 dark:border-primary-800 pr-2">
+                      {item.children.map((child: any) => (
+                        <Link
+                          key={child.path}
+                          to={child.path}
+                          onClick={() => setSidebarOpen(false)}
+                          className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
+                            isActive(child.path)
+                              ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 font-medium'
+                              : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200'
+                          }`}
+                        >
+                          {child.label}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
               );
+            }
+            return (
+              <Link
+                key={item.path}
+                to={item.path!}
+                onClick={() => setSidebarOpen(false)}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                  isActive(item.path!)
+                    ? 'bg-primary-50 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 font-medium'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+              >
+                <item.icon className="w-5 h-5 flex-shrink-0" />
+                <span>{item.label}</span>
+              </Link>
+            );
           })}
         </nav>
       </aside>
 
-      {/* Overlay */}
-      {sidebarOpen && <div className="fixed inset-0 bg-black/20 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />}
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/30 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      {/* Main area */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Header */}
-        <header className="h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-4 lg:px-6">
-          <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+        <header className="h-16 flex-shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-4 lg:px-6">
+          {/* Mobile menu button */}
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+          >
             <Menu className="w-5 h-5 dark:text-white" />
           </button>
 
-          <div className="flex items-center gap-3 mr-auto">
-            <div className="text-left">
+          {/* Header controls */}
+          <div className="flex items-center gap-2 ms-auto">
+            <div className="text-right hidden sm:block">
               <p className="text-sm font-medium dark:text-white">{user?.full_name}</p>
               <p className="text-xs text-gray-500 dark:text-gray-400">{roleLabel[user?.role || ''] || user?.role}</p>
             </div>
-            <div className="w-9 h-9 bg-primary-100 dark:bg-primary-900 rounded-full flex items-center justify-center">
+            <div className="w-9 h-9 bg-primary-100 dark:bg-primary-900 rounded-full flex items-center justify-center flex-shrink-0">
               <UserCircle className="w-6 h-6 text-primary-600 dark:text-primary-300" />
             </div>
-            <button onClick={() => toggleTheme()} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500 dark:text-gray-400" title={isRtl ? 'تغيير الوضع' : 'Toggle theme'}>
+            <button
+              onClick={() => toggleTheme()}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500 dark:text-gray-400"
+              title={isRtl ? 'تغيير الوضع' : 'Toggle theme'}
+            >
               {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
-            <div className="px-2 py-1 text-xs font-medium text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-600 rounded-lg">
+            <div className="px-2 py-1 text-xs font-medium text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-600 rounded-lg hidden sm:block">
               {symbol}
             </div>
             {pendingSyncCount > 0 && (
-              <button onClick={() => void flushSyncQueue()} className="px-2 py-1 text-xs font-medium rounded-lg border border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-300 dark:bg-amber-900/20" title="مزامنة العمليات المحلية">
+              <button
+                onClick={() => void flushSyncQueue()}
+                className="px-2 py-1 text-xs font-medium rounded-lg border border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-300 dark:bg-amber-900/20"
+                title="مزامنة العمليات المحلية"
+              >
                 {pendingSyncCount} مزامنة
               </button>
             )}
-            <button onClick={() => setLanguage(language === 'ar' ? 'en' : language === 'en' ? 'ku' : 'ar')} className="px-2 py-1 text-xs font-medium hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-600" title={language === 'ar' ? 'English' : language === 'en' ? 'Kurdish' : 'العربية'}>
+            <button
+              onClick={() => setLanguage(language === 'ar' ? 'en' : language === 'en' ? 'ku' : 'ar')}
+              className="px-2 py-1 text-xs font-medium hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-600"
+            >
               {language === 'ar' ? 'EN' : language === 'en' ? 'KU' : 'AR'}
             </button>
-            <button onClick={handleLogout} className="p-2 hover:bg-red-50 dark:hover:bg-red-900/50 rounded-lg text-red-500 dark:text-red-400" title={t('auth.logout')}>
+            <button
+              onClick={handleLogout}
+              className="p-2 hover:bg-red-50 dark:hover:bg-red-900/50 rounded-lg text-red-500 dark:text-red-400"
+              title={t('auth.logout')}
+            >
               <LogOut className="w-5 h-5" />
             </button>
           </div>
         </header>
 
-        {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+        {/* Page content */}
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6" dir={isRtl ? 'rtl' : 'ltr'}>
           {children}
         </main>
       </div>
