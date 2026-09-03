@@ -82,6 +82,17 @@ import barcodePrintRoutes from './routes/barcode_print';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const trustProxyValue = process.env.TRUST_PROXY;
+if (trustProxyValue) {
+  const normalized = trustProxyValue.trim().toLowerCase();
+  if (normalized === 'true') app.set('trust proxy', true);
+  else if (normalized === 'false') app.set('trust proxy', false);
+  else {
+    const asNumber = Number(normalized);
+    if (!Number.isNaN(asNumber)) app.set('trust proxy', asNumber);
+  }
+}
+
 // Security middleware
 app.use(helmet({
   contentSecurityPolicy: {
