@@ -6,8 +6,10 @@ import { query, queryOne, execute } from '../config/database';
 export async function generateCodeAsync(prefix: string, table: string, column: string = 'code'): Promise<string> {
   const safeTable = table.replace(/[^a-z_]/gi, '');
   const safeCol = column.replace(/[^a-z_]/gi, '');
+  // Use ? placeholders so both PG and SQLite layers can translate.
+  // SUBSTRING(col, N) is translated to substr(col, N) for SQLite automatically.
   const result = await queryOne(
-    `SELECT MAX(CAST(SUBSTRING(${safeCol}, LENGTH($1) + 1) AS INTEGER)) AS max_num FROM ${safeTable} WHERE ${safeCol} LIKE $2`,
+    `SELECT MAX(CAST(SUBSTRING(${safeCol}, LENGTH(?) + 1) AS INTEGER)) AS max_num FROM ${safeTable} WHERE ${safeCol} LIKE ?`,
     [prefix, `${prefix}%`]
   );
   const nextNum = (result?.max_num || 0) + 1;

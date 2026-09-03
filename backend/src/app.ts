@@ -157,13 +157,35 @@ if (fs.existsSync(frontendDist)) {
 // i18n middleware
 app.use(i18nMiddleware);
 
-// Initialize database (async for PostgreSQL)
-initializeDatabase()
-  .then(() => { logCloudProviderWarning(); })
-  .catch((err) => {
-    logger.error('Database initialization failed', { error: (err as Error).message });
-    process.exit(1);
-  });
+// Initialize database once, guaranteed before handling any /api request.
+// On serverless (cold start) the first request awaits this promise.
+let dbInitPromise: Promise<void> | null = null;
+function ensureDbInitialized(): Promise<void> {
+  if (!dbInitPromise) {
+    dbInitPromise = initializeDatabase()
+      .then(() => { logCloudProviderWarning(); })
+      .catch((err) => {
+        logger.error('Database initialization failed', { error: (err as Error).message });
+        // Reset so a later request can retry instead of permanently failing.
+        dbInitPromise = null;
+        throw err;
+      });
+  }
+  return dbInitPromise;
+}
+
+// Kick off init eagerly (non-blocking) for long-running server mode.
+void ensureDbInitialized().catch(() => { /* handled per-request below */ });
+
+// Guarantee DB readiness for every API request (critical on serverless).
+app.use('/api', async (_req, res, next) => {
+  try {
+    await ensureDbInitialized();
+    next();
+  } catch {
+    res.status(503).json({ error: 'Database initialization failed, please retry' });
+  }
+});
 
 // Swagger
 const swaggerSpec = swaggerJsdoc({
@@ -260,8 +282,8 @@ app.get('/api/health', async (_req, res) => {
   const used = process.memoryUsage();
   let dbStatus = 'unknown';
   try {
-    const { getPool } = await import('./config/database');
-    await getPool().query('SELECT 1');
+    const { query } = await import('./config/database');
+    await query('SELECT 1');
     dbStatus = 'connected';
   } catch {
     dbStatus = 'error';

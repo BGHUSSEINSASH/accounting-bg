@@ -129,7 +129,7 @@ router.get('/predictive', async (_req: AuthRequest, res: Response) => {
       ORDER BY month
     `) as any[];
 
-    let prediction = null;
+    let prediction: number | null = null;
     let growthRate = 0;
     if (monthlyTotals.length >= 2) {
       const last = monthlyTotals[monthlyTotals.length - 1].total;

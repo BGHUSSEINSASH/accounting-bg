@@ -62,7 +62,7 @@ router.post('/items', authorize('admin', 'manager'), async (req: AuthRequest, re
         if (!name) { errors.push({ row: idx + 2, error: 'missing name' }); continue; }
         const barcode = pick(row, ['barcode', 'باركود', 'رمز الباركود', 'sku']);
         const code = pick(row, ['code', 'الكود', 'رمز الصنف', 'item_code']) || barcode || genCode('IMP');
-        let existing = null;
+        let existing: any = null;
         if (barcode) { const r = await pool.query('SELECT id FROM items WHERE barcode = $1', [barcode]); existing = r.rows[0]; }
         if (!existing && !barcode) { const r = await pool.query('SELECT id FROM items WHERE code = $1', [code]); existing = r.rows[0]; }
         if (!existing) { const r = await pool.query('SELECT id FROM items WHERE name = $1', [name]); existing = r.rows[0]; }
@@ -106,7 +106,7 @@ router.post('/clients', authorize('admin', 'manager'), async (req: AuthRequest, 
         if (!name) { errors.push({ row: idx + 2, error: 'missing name' }); continue; }
         const phone = pick(row, ['phone', 'الهاتف', 'الجوال', 'رقم الهاتف']);
         const code = pick(row, ['code', 'الكود', 'رمز العميل']) || genCode('C');
-        let existing = null;
+        let existing: any = null;
         const r1 = await pool.query('SELECT id FROM clients WHERE name = $1', [name]); existing = r1.rows[0];
         if (!existing && phone) { const r2 = await pool.query('SELECT id FROM clients WHERE phone = $1', [phone]); existing = r2.rows[0]; }
         if (existing) {
@@ -145,7 +145,7 @@ router.post('/suppliers', authorize('admin', 'manager'), async (req: AuthRequest
         if (!name) { errors.push({ row: idx + 2, error: 'missing name' }); continue; }
         const phone = pick(row, ['phone', 'الهاتف', 'الجوال', 'رقم الهاتف']);
         const code = pick(row, ['code', 'الكود', 'رمز المورد']) || genCode('S');
-        let existing = null;
+        let existing: any = null;
         const r1 = await pool.query('SELECT id FROM suppliers WHERE name = $1', [name]); existing = r1.rows[0];
         if (!existing && phone) { const r2 = await pool.query('SELECT id FROM suppliers WHERE phone = $1', [phone]); existing = r2.rows[0]; }
         if (existing) {
