@@ -87,8 +87,8 @@ async function getPglite(): Promise<any> {
         console.error('CRITICAL: pglite.data not found. PGlite will fail.');
         pgliteDb = new PGlite(dbPath);
       } else {
-        console.log(`Using pglite.data from: ${pgliteDataPath}`);
-        // Find pglite.wasm in same locations as pglite.data
+        console.log(`PGlite using data: ${pgliteDataPath}`);
+        // Find pglite.wasm + initdb.wasm alongside pglite.data
         const pgliteWasmCandidates = pgliteDataCandidates.map((c) => c.replace('pglite.data', 'pglite.wasm'));
         const initdbWasmCandidates = pgliteDataCandidates.map((c) => c.replace('pglite.data', 'initdb.wasm'));
         let pgliteWasmPath: string | null = null;
@@ -96,20 +96,20 @@ async function getPglite(): Promise<any> {
         for (const c of pgliteWasmCandidates) { if (fs.existsSync(c)) { pgliteWasmPath = c; break; } }
         for (const c of initdbWasmCandidates) { if (fs.existsSync(c)) { initdbWasmPath = c; break; } }
 
-        // Pass pglite.data as fsBundle
+        // Build options — pass binary blobs so PGlite never reads from node_modules on disk
         const dataBuffer = fs.readFileSync(pgliteDataPath);
         const opts: any = { fsBundle: new Blob([dataBuffer]) };
 
-        // Pass wasmBinary so PGlite doesn't need to read pglite.wasm from disk
         if (pgliteWasmPath) {
-          console.log(`Using pglite.wasm from: ${pgliteWasmPath}`);
-          opts.wasmBinary = fs.readFileSync(pgliteWasmPath);
+          console.log(`PGlite using wasm: ${pgliteWasmPath}`);
+          // pgliteWasmModule must be a compiled WebAssembly.Module
+          const wasmBytes = fs.readFileSync(pgliteWasmPath);
+          opts.pgliteWasmModule = await (global as any).WebAssembly.compile(wasmBytes);
         }
 
-        // initdb.wasm — patch Module.locateFile for it
         if (initdbWasmPath) {
           const initdbBytes = fs.readFileSync(initdbWasmPath);
-          opts.initdbModule = { wasmBinary: initdbBytes };
+          opts.initdbWasmModule = await (global as any).WebAssembly.compile(initdbBytes);
         }
 
         pgliteDb = new PGlite(dbPath, opts);
