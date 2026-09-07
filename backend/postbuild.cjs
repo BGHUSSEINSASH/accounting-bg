@@ -1,36 +1,37 @@
 ﻿const fs = require('fs');
 const path = require('path');
 
-// Find pglite dist directory using package.json location
+// Find pglite dist directory
 let pgliteDistDir;
 try {
-  const pglitePkg = require.resolve('@electric-sql/pglite/package.json');
-  pgliteDistDir = path.join(path.dirname(pglitePkg), 'dist');
+  const pgliteMain = require.resolve('@electric-sql/pglite');
+  pgliteDistDir = path.dirname(pgliteMain);
 } catch (e) {
-  // Try direct path
   pgliteDistDir = path.join(__dirname, 'node_modules', '@electric-sql', 'pglite', 'dist');
 }
 
-const src = path.join(pgliteDistDir, 'pglite.data');
+const filesToCopy = ['pglite.data', 'pglite.wasm', 'initdb.wasm'];
 
-if (!fs.existsSync(src)) {
-  console.warn('pglite.data not found at', src, '- skipping copy');
-  process.exit(0);
-}
-
-console.log('pglite.data found at', src, `(${(fs.statSync(src).size/1024/1024).toFixed(1)}MB)`);
-
-// Copy to multiple locations to ensure it's found by Vercel serverless
-const targets = [
-  path.join(__dirname, 'pglite.data'),           // project root -> /var/task/pglite.data
-  path.join(__dirname, 'dist', 'pglite.data'),   // dist folder
-];
-
-for (const target of targets) {
-  try {
-    fs.copyFileSync(src, target);
-    console.log('Copied pglite.data to', target);
-  } catch (e) {
-    console.warn('Failed to copy to', target, ':', e.message);
+for (const file of filesToCopy) {
+  const src = path.join(pgliteDistDir, file);
+  if (!fs.existsSync(src)) {
+    console.warn(file, 'not found at', src);
+    continue;
+  }
+  const size = fs.statSync(src).size;
+  console.log(`${file} found at ${src} (${(size/1024/1024).toFixed(1)}MB)`);
+  
+  // Copy to project root (-> /var/task/{file} on Vercel) and dist/
+  const targets = [
+    path.join(__dirname, file),
+    path.join(__dirname, 'dist', file),
+  ];
+  for (const target of targets) {
+    try {
+      fs.copyFileSync(src, target);
+      console.log('  Copied to', target);
+    } catch (e) {
+      console.warn('  Failed to copy to', target, ':', e.message);
+    }
   }
 }

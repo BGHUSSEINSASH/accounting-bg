@@ -84,13 +84,29 @@ async function getPglite(): Promise<any> {
       }
 
       if (!pgliteDataPath) {
-        console.error('CRITICAL: pglite.data not found in any expected location. PGlite will fail on first query.');
+        console.error('CRITICAL: pglite.data not found. PGlite will fail.');
         pgliteDb = new PGlite(dbPath);
       } else {
         console.log(`Using pglite.data from: ${pgliteDataPath}`);
-        // Pass pglite.data as fsBundle so PGlite doesn't need to find it itself
+        // Find pglite.wasm in same locations
+        const pgliteWasmCandidates = pgliteDataCandidates.map((c) => c.replace('pglite.data', 'pglite.wasm'));
+        let pgliteWasmPath: string | null = null;
+        for (const c of pgliteWasmCandidates) {
+          if (fs.existsSync(c)) { pgliteWasmPath = c; break; }
+        }
+
+        // Pass pglite.data as fsBundle — PGlite uses this instead of reading from node_modules path
         const dataBuffer = fs.readFileSync(pgliteDataPath);
-        pgliteDb = new PGlite(dbPath, { fsBundle: new Blob([dataBuffer]) });
+        const opts: any = { fsBundle: new Blob([dataBuffer]) };
+
+        // Pass wasm as wasmModule to also bypass path lookup for wasm
+        if (pgliteWasmPath) {
+          console.log(`Using pglite.wasm from: ${pgliteWasmPath}`);
+          const wasmBytes = fs.readFileSync(pgliteWasmPath);
+          opts.wasmModule = await (global as any).WebAssembly.compile(wasmBytes);
+        }
+
+        pgliteDb = new PGlite(dbPath, opts);
       }
 
       await pgliteDb.ready;

@@ -3,8 +3,8 @@
   "outputDirectory": "dist",
   "functions": {
     "api/index.ts": {
-      "maxDuration": 30,
-      "includeFiles": "database/**,pglite.data,dist/pglite.data"
+      "maxDuration": 60,
+      "includeFiles": "database/**,pglite.data,pglite.wasm,initdb.wasm,dist/pglite.data,dist/pglite.wasm,dist/initdb.wasm"
     }
   },
   "routes": [
