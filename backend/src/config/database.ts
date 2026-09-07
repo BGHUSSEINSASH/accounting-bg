@@ -88,22 +88,28 @@ async function getPglite(): Promise<any> {
         pgliteDb = new PGlite(dbPath);
       } else {
         console.log(`Using pglite.data from: ${pgliteDataPath}`);
-        // Find pglite.wasm in same locations
+        // Find pglite.wasm in same locations as pglite.data
         const pgliteWasmCandidates = pgliteDataCandidates.map((c) => c.replace('pglite.data', 'pglite.wasm'));
+        const initdbWasmCandidates = pgliteDataCandidates.map((c) => c.replace('pglite.data', 'initdb.wasm'));
         let pgliteWasmPath: string | null = null;
-        for (const c of pgliteWasmCandidates) {
-          if (fs.existsSync(c)) { pgliteWasmPath = c; break; }
-        }
+        let initdbWasmPath: string | null = null;
+        for (const c of pgliteWasmCandidates) { if (fs.existsSync(c)) { pgliteWasmPath = c; break; } }
+        for (const c of initdbWasmCandidates) { if (fs.existsSync(c)) { initdbWasmPath = c; break; } }
 
-        // Pass pglite.data as fsBundle — PGlite uses this instead of reading from node_modules path
+        // Pass pglite.data as fsBundle
         const dataBuffer = fs.readFileSync(pgliteDataPath);
         const opts: any = { fsBundle: new Blob([dataBuffer]) };
 
-        // Pass wasm as wasmModule to also bypass path lookup for wasm
+        // Pass wasmBinary so PGlite doesn't need to read pglite.wasm from disk
         if (pgliteWasmPath) {
           console.log(`Using pglite.wasm from: ${pgliteWasmPath}`);
-          const wasmBytes = fs.readFileSync(pgliteWasmPath);
-          opts.wasmModule = await (global as any).WebAssembly.compile(wasmBytes);
+          opts.wasmBinary = fs.readFileSync(pgliteWasmPath);
+        }
+
+        // initdb.wasm — patch Module.locateFile for it
+        if (initdbWasmPath) {
+          const initdbBytes = fs.readFileSync(initdbWasmPath);
+          opts.initdbModule = { wasmBinary: initdbBytes };
         }
 
         pgliteDb = new PGlite(dbPath, opts);
