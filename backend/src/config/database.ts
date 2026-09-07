@@ -77,10 +77,13 @@ async function getPglite(): Promise<any> {
         path.join(__dirname, '..', '..', 'node_modules', '@electric-sql', 'pglite', 'dist', 'pglite.data'),
       ];
 
-      console.log(`[PGlite] cwd=${process.cwd()} __dirname=${__dirname}`);
-      for (const c of pgliteDataCandidates) {
-        console.log(`[PGlite] check: ${c} exists=${fs.existsSync(c)}`);
-      }
+      // Find the pglite dist directory (will have wasm files)
+      const pgliteDistCandidates = [
+        path.join(process.cwd(), 'node_modules', '@electric-sql', 'pglite', 'dist'),
+        path.join(__dirname, '..', '..', 'node_modules', '@electric-sql', 'pglite', 'dist'),
+        path.join(process.cwd()),  // root where postbuild copies them
+        path.join(process.cwd(), 'dist'),
+      ];
 
       let pgliteDataPath: string | null = null;
       for (const c of pgliteDataCandidates) {
@@ -92,13 +95,16 @@ async function getPglite(): Promise<any> {
         pgliteDb = new PGlite(dbPath);
       } else {
         console.log(`PGlite using data: ${pgliteDataPath}`);
-        // Find pglite.wasm + initdb.wasm alongside pglite.data
-        const pgliteWasmCandidates = pgliteDataCandidates.map((c) => c.replace('pglite.data', 'pglite.wasm'));
-        const initdbWasmCandidates = pgliteDataCandidates.map((c) => c.replace('pglite.data', 'initdb.wasm'));
+        // Find pglite.wasm + initdb.wasm — check pgliteDistCandidates first (they have the wasm)
         let pgliteWasmPath: string | null = null;
         let initdbWasmPath: string | null = null;
-        for (const c of pgliteWasmCandidates) { if (fs.existsSync(c)) { pgliteWasmPath = c; break; } }
-        for (const c of initdbWasmCandidates) { if (fs.existsSync(c)) { initdbWasmPath = c; break; } }
+        for (const d of pgliteDistCandidates) {
+          const w = path.join(d, 'pglite.wasm');
+          const i = path.join(d, 'initdb.wasm');
+          if (!pgliteWasmPath && fs.existsSync(w)) pgliteWasmPath = w;
+          if (!initdbWasmPath && fs.existsSync(i)) initdbWasmPath = i;
+          if (pgliteWasmPath && initdbWasmPath) break;
+        }
 
         // Build options — pass binary blobs so PGlite never reads from node_modules on disk
         const dataBuffer = fs.readFileSync(pgliteDataPath);
