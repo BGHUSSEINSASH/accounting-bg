@@ -5,7 +5,7 @@
   "main": "dist/app.js",
   "scripts": {
     "dev": "ts-node-dev --respawn src/app.ts",
-    "build": "tsc",
+    "build": "tsc && node postbuild.cjs",
     "start": "node dist/app.js",
     "seed": "ts-node src/seed.ts",
     "migrate": "ts-node src/migrate.ts"

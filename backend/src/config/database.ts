@@ -64,6 +64,31 @@ async function getPglite(): Promise<any> {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { PGlite } = require('@electric-sql/pglite');
       const dbPath = getPglitePath();
+
+      // PGlite looks for pglite.data relative to its own file (scriptDirectory).
+      // On Vercel, that's /var/task/. We copied pglite.data there during build
+      // (postbuild.cjs). We also pass locateFile as a safety override.
+      const pgliteDataCandidates = [
+        path.join(process.cwd(), 'pglite.data'),                    // project root (postbuild copy)
+        path.join(__dirname, '..', '..', 'pglite.data'),            // backend root
+        path.join(__dirname, 'pglite.data'),                        // dist/ (postbuild copy)
+        path.join(process.cwd(), 'dist', 'pglite.data'),
+      ];
+      let pgliteDataPath: string | null = null;
+      for (const c of pgliteDataCandidates) {
+        if (fs.existsSync(c)) { pgliteDataPath = c; break; }
+      }
+
+      const options: any = { dataDir: dbPath };
+      if (pgliteDataPath) {
+        // locateFile tells PGlite where to find pglite.data
+        options.wasmModule = undefined; // let it find the wasm normally
+        options.fsBundle = pgliteDataPath;
+      } else {
+        // No local copy - PGlite will try node_modules path (might fail on serverless)
+        console.warn('pglite.data not found locally, PGlite will use default path');
+      }
+
       pgliteDb = new PGlite(dbPath);
       await pgliteDb.ready;
     })();
