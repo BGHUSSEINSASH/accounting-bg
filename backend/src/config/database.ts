@@ -69,14 +69,18 @@ async function getPglite(): Promise<any> {
       // On Vercel, postbuild.cjs copies it to project root and dist/.
       // The includeFiles in vercel.json ensures it's present at runtime.
       const pgliteDataCandidates = [
-        path.join(process.cwd(), 'pglite.data'),                         // /var/task/pglite.data (postbuild copy)
-        path.join(process.cwd(), 'dist', 'pglite.data'),                 // /var/task/dist/pglite.data
-        path.join(__dirname, '..', 'pglite.data'),                       // backend root (local dev)
-        path.join(__dirname, '..', '..', 'pglite.data'),                 // parent dir
-        // Standard node_modules path — will work locally but NOT on Vercel serverless
-        path.join(__dirname, '..', '..', 'node_modules', '@electric-sql', 'pglite', 'dist', 'pglite.data'),
+        path.join(process.cwd(), 'pglite.data'),
+        path.join(process.cwd(), 'dist', 'pglite.data'),
+        path.join(__dirname, '..', 'pglite.data'),
+        path.join(__dirname, '..', '..', 'pglite.data'),
         path.join(process.cwd(), 'node_modules', '@electric-sql', 'pglite', 'dist', 'pglite.data'),
+        path.join(__dirname, '..', '..', 'node_modules', '@electric-sql', 'pglite', 'dist', 'pglite.data'),
       ];
+
+      console.log(`[PGlite] cwd=${process.cwd()} __dirname=${__dirname}`);
+      for (const c of pgliteDataCandidates) {
+        console.log(`[PGlite] check: ${c} exists=${fs.existsSync(c)}`);
+      }
 
       let pgliteDataPath: string | null = null;
       for (const c of pgliteDataCandidates) {
