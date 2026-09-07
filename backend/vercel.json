@@ -1,7 +1,6 @@
 {
   "version": 2,
   "outputDirectory": "dist",
-  "buildCommand": "npm install && npm run build",
   "functions": {
     "api/index.ts": {
       "maxDuration": 30,
