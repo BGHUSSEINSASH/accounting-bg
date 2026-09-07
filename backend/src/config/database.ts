@@ -65,31 +65,34 @@ async function getPglite(): Promise<any> {
       const { PGlite } = require('@electric-sql/pglite');
       const dbPath = getPglitePath();
 
-      // PGlite looks for pglite.data relative to its own file (scriptDirectory).
-      // On Vercel, that's /var/task/. We copied pglite.data there during build
-      // (postbuild.cjs). We also pass locateFile as a safety override.
+      // Find pglite.data — check multiple locations in priority order.
+      // On Vercel, postbuild.cjs copies it to project root and dist/.
+      // The includeFiles in vercel.json ensures it's present at runtime.
       const pgliteDataCandidates = [
-        path.join(process.cwd(), 'pglite.data'),                    // project root (postbuild copy)
-        path.join(__dirname, '..', '..', 'pglite.data'),            // backend root
-        path.join(__dirname, 'pglite.data'),                        // dist/ (postbuild copy)
-        path.join(process.cwd(), 'dist', 'pglite.data'),
+        path.join(process.cwd(), 'pglite.data'),                         // /var/task/pglite.data (postbuild copy)
+        path.join(process.cwd(), 'dist', 'pglite.data'),                 // /var/task/dist/pglite.data
+        path.join(__dirname, '..', 'pglite.data'),                       // backend root (local dev)
+        path.join(__dirname, '..', '..', 'pglite.data'),                 // parent dir
+        // Standard node_modules path — will work locally but NOT on Vercel serverless
+        path.join(__dirname, '..', '..', 'node_modules', '@electric-sql', 'pglite', 'dist', 'pglite.data'),
+        path.join(process.cwd(), 'node_modules', '@electric-sql', 'pglite', 'dist', 'pglite.data'),
       ];
+
       let pgliteDataPath: string | null = null;
       for (const c of pgliteDataCandidates) {
         if (fs.existsSync(c)) { pgliteDataPath = c; break; }
       }
 
-      const options: any = { dataDir: dbPath };
-      if (pgliteDataPath) {
-        // locateFile tells PGlite where to find pglite.data
-        options.wasmModule = undefined; // let it find the wasm normally
-        options.fsBundle = pgliteDataPath;
+      if (!pgliteDataPath) {
+        console.error('CRITICAL: pglite.data not found in any expected location. PGlite will fail on first query.');
+        pgliteDb = new PGlite(dbPath);
       } else {
-        // No local copy - PGlite will try node_modules path (might fail on serverless)
-        console.warn('pglite.data not found locally, PGlite will use default path');
+        console.log(`Using pglite.data from: ${pgliteDataPath}`);
+        // Pass pglite.data as fsBundle so PGlite doesn't need to find it itself
+        const dataBuffer = fs.readFileSync(pgliteDataPath);
+        pgliteDb = new PGlite(dbPath, { fsBundle: new Blob([dataBuffer]) });
       }
 
-      pgliteDb = new PGlite(dbPath);
       await pgliteDb.ready;
     })();
   }
