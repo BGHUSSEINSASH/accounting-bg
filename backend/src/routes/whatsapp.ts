@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import { query, queryOne, execute, logActivityAsync } from '../config/database';
 import { authenticate, authorize } from '../middleware/auth';
 import { AuthRequest } from '../types';
@@ -9,7 +9,7 @@ router.use(authenticate);
 
 router.get('/config', async (_req: AuthRequest, res: Response) => {
   try {
-    res.json(getWhatsAppConfig());
+    res.json(await getWhatsAppConfig());
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
@@ -25,25 +25,25 @@ router.post('/config', authorize('admin'), async (req: AuthRequest, res: Respons
         [provider || 'meta', api_token || '', account_sid || '', phone_number_id || '', business_phone || '', api_url || '', is_active ?? 0, req.user!.id]);
     }
     void logActivityAsync(req.user!.id, 'update_whatsapp_config', 'whatsapp_config');
-    res.json({ message: 'تم حفظ إعدادات واتساب' });
+    res.json({ message: 'ØªÙ… Ø­ÙØ¸ Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª ÙˆØ§ØªØ³Ø§Ø¨' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 router.post('/send', authorize('admin', 'manager', 'sales_rep'), async (req: AuthRequest, res: Response) => {
   try {
     const { to, message } = req.body;
-    if (!to || !message) return res.status(400).json({ error: 'الرقم والرسالة مطلوبان' });
+    if (!to || !message) return res.status(400).json({ error: 'Ø§Ù„Ø±Ù‚Ù… ÙˆØ§Ù„Ø±Ø³Ø§Ù„Ø© Ù…Ø·Ù„ÙˆØ¨Ø§Ù†' });
     const result = await sendWhatsAppMessage(to, message, req.user!.id);
-    res.status(result.ok ? 200 : 400).json(result);
+    res.status(result.success ? 200 : 400).json(result);
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 router.post('/test', authorize('admin'), async (req: AuthRequest, res: Response) => {
   try {
     const { to, message } = req.body;
-    if (!to || !message) return res.status(400).json({ error: 'الرقم والرسالة مطلوبان' });
+    if (!to || !message) return res.status(400).json({ error: 'Ø§Ù„Ø±Ù‚Ù… ÙˆØ§Ù„Ø±Ø³Ø§Ù„Ø© Ù…Ø·Ù„ÙˆØ¨Ø§Ù†' });
     const result = await sendWhatsAppMessage(to, message, req.user!.id);
-    res.status(result.ok ? 200 : 400).json(result);
+    res.status(result.success ? 200 : 400).json(result);
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
@@ -75,9 +75,9 @@ router.get('/overdue-preview', async (_req: AuthRequest, res: Response) => {
 router.post('/send-reminder', authorize('admin', 'manager', 'sales_rep'), async (req: AuthRequest, res: Response) => {
   try {
     const { client_id, message } = req.body;
-    if (!client_id || !message) return res.status(400).json({ error: 'client_id والرسالة مطلوبان' });
+    if (!client_id || !message) return res.status(400).json({ error: 'client_id ÙˆØ§Ù„Ø±Ø³Ø§Ù„Ø© Ù…Ø·Ù„ÙˆØ¨Ø§Ù†' });
     const client = await queryOne('SELECT phone, name FROM clients WHERE id = ?', [client_id]) as { phone: string; name: string } | undefined;
-    if (!client || !client.phone) return res.status(404).json({ error: 'العميل غير موجود أو لا يمتلك رقم هاتف' });
+    if (!client || !client.phone) return res.status(404).json({ error: 'Ø§Ù„Ø¹Ù…ÙŠÙ„ ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯ Ø£Ùˆ Ù„Ø§ ÙŠÙ…ØªÙ„Ùƒ Ø±Ù‚Ù… Ù‡Ø§ØªÙ' });
     const phone = client.phone.replace(/[^0-9]/g, '');
     const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
     void logActivityAsync(req.user!.id, 'send_whatsapp_reminder', 'clients', Number(client_id));
@@ -102,7 +102,7 @@ router.post('/bulk-reminder', authorize('admin', 'manager'), async (req: AuthReq
     const urls = rows.map((client) => {
       const msg = message_template
         ? message_template.replace('{name}', client.name).replace('{amount}', String(client.total_overdue))
-        : `عزيزي ${client.name}، لديك مبلغ متأخر قدره ${client.total_overdue}. يرجى التواصل معنا لتسوية الحساب.`;
+        : `Ø¹Ø²ÙŠØ²ÙŠ ${client.name}ØŒ Ù„Ø¯ÙŠÙƒ Ù…Ø¨Ù„Øº Ù…ØªØ£Ø®Ø± Ù‚Ø¯Ø±Ù‡ ${client.total_overdue}. ÙŠØ±Ø¬Ù‰ Ø§Ù„ØªÙˆØ§ØµÙ„ Ù…Ø¹Ù†Ø§ Ù„ØªØ³ÙˆÙŠØ© Ø§Ù„Ø­Ø³Ø§Ø¨.`;
       const phone = client.phone.replace(/[^0-9]/g, '');
       return { client_id: client.id, name: client.name, phone: client.phone, url: `https://wa.me/${phone}?text=${encodeURIComponent(msg)}` };
     });
@@ -113,3 +113,5 @@ router.post('/bulk-reminder', authorize('admin', 'manager'), async (req: AuthReq
 });
 
 export default router;
+
+

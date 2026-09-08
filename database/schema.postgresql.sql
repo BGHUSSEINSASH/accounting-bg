@@ -1096,3 +1096,250 @@ INSERT INTO settings (setting_key, setting_value) VALUES
 ('language', 'ar'),
 ('timezone', 'Asia/Baghdad')
 ON CONFLICT (setting_key) DO NOTHING;
+
+-- =========================================
+-- Extra tables required by routes
+-- =========================================
+
+CREATE TABLE IF NOT EXISTS payroll (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  month INTEGER NOT NULL,
+  year INTEGER NOT NULL,
+  basic_salary NUMERIC(15,2) DEFAULT 0,
+  housing_allowance NUMERIC(15,2) DEFAULT 0,
+  transportation_allowance NUMERIC(15,2) DEFAULT 0,
+  overtime_amount NUMERIC(15,2) DEFAULT 0,
+  gross_salary NUMERIC(15,2) DEFAULT 0,
+  social_insurance NUMERIC(15,2) DEFAULT 0,
+  loan_deduction NUMERIC(15,2) DEFAULT 0,
+  absence_deduction NUMERIC(15,2) DEFAULT 0,
+  net_salary NUMERIC(15,2) DEFAULT 0,
+  status VARCHAR(20) DEFAULT 'draft',
+  notes TEXT,
+  created_by INTEGER,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(user_id, month, year)
+);
+
+CREATE TABLE IF NOT EXISTS commission_rules (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  type VARCHAR(20) DEFAULT 'percentage',
+  value NUMERIC(10,2) DEFAULT 0,
+  min_target NUMERIC(15,2) DEFAULT 0,
+  is_active INTEGER DEFAULT 1,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS commissions (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  sales_invoice_id INTEGER,
+  rule_id INTEGER,
+  amount NUMERIC(15,2) DEFAULT 0,
+  month INTEGER,
+  year INTEGER,
+  status VARCHAR(20) DEFAULT 'pending',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS whatsapp_config (
+  id SERIAL PRIMARY KEY,
+  provider VARCHAR(50) DEFAULT 'twilio',
+  api_token TEXT,
+  account_sid TEXT,
+  phone_number_id TEXT,
+  business_phone TEXT,
+  api_url TEXT,
+  is_active INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS whatsapp_messages (
+  id SERIAL PRIMARY KEY,
+  to_number TEXT NOT NULL,
+  message TEXT NOT NULL,
+  status VARCHAR(20) DEFAULT 'pending',
+  provider VARCHAR(50),
+  response TEXT,
+  created_by INTEGER,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS pricing_rules (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  rule_type VARCHAR(30) DEFAULT 'fixed',
+  item_id INTEGER,
+  client_id INTEGER,
+  min_quantity NUMERIC(10,3) DEFAULT 0,
+  price_adjustment NUMERIC(10,2) DEFAULT 0,
+  adjustment_type VARCHAR(20) DEFAULT 'percentage',
+  start_date DATE,
+  end_date DATE,
+  is_active INTEGER DEFAULT 1,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS bundles (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  selling_price NUMERIC(15,2) DEFAULT 0,
+  gift INTEGER DEFAULT 0,
+  is_active INTEGER DEFAULT 1,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS bundle_items (
+  id SERIAL PRIMARY KEY,
+  bundle_id INTEGER NOT NULL REFERENCES bundles(id) ON DELETE CASCADE,
+  item_id INTEGER NOT NULL,
+  quantity NUMERIC(10,3) DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS payment_terms (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  is_active INTEGER DEFAULT 1,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS payment_term_lines (
+  id SERIAL PRIMARY KEY,
+  term_id INTEGER NOT NULL REFERENCES payment_terms(id) ON DELETE CASCADE,
+  due_days INTEGER DEFAULT 0,
+  percentage NUMERIC(5,2) DEFAULT 100
+);
+
+CREATE TABLE IF NOT EXISTS payment_gateways (
+  id SERIAL PRIMARY KEY,
+  provider VARCHAR(50) NOT NULL,
+  name TEXT NOT NULL,
+  public_key TEXT,
+  secret_key TEXT,
+  webhook_secret TEXT,
+  sandbox_mode INTEGER DEFAULT 1,
+  is_active INTEGER DEFAULT 0,
+  is_default INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS loyalty_cards (
+  id SERIAL PRIMARY KEY,
+  card_number TEXT UNIQUE NOT NULL,
+  client_id INTEGER REFERENCES clients(id),
+  discount_percentage NUMERIC(5,2) DEFAULT 0,
+  start_date DATE,
+  end_date DATE,
+  is_active INTEGER DEFAULT 1,
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS batch_payments (
+  id SERIAL PRIMARY KEY,
+  reference TEXT,
+  payment_date DATE,
+  bank_account_id INTEGER,
+  total_amount NUMERIC(15,2) DEFAULT 0,
+  notes TEXT,
+  created_by INTEGER,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS batch_payment_lines (
+  id SERIAL PRIMARY KEY,
+  batch_payment_id INTEGER NOT NULL REFERENCES batch_payments(id) ON DELETE CASCADE,
+  invoice_id INTEGER,
+  amount NUMERIC(15,2) DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS analytical_accounts (
+  id SERIAL PRIMARY KEY,
+  code TEXT UNIQUE,
+  name TEXT NOT NULL,
+  type VARCHAR(30),
+  parent_id INTEGER,
+  budget_amount NUMERIC(15,2) DEFAULT 0,
+  description TEXT,
+  is_active INTEGER DEFAULT 1,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS inventory_transfers (
+  id SERIAL PRIMARY KEY,
+  transfer_number TEXT UNIQUE NOT NULL,
+  from_warehouse_id INTEGER,
+  to_warehouse_id INTEGER,
+  transfer_date DATE,
+  status VARCHAR(20) DEFAULT 'pending',
+  notes TEXT,
+  created_by INTEGER,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS inventory_transfer_items (
+  id SERIAL PRIMARY KEY,
+  transfer_id INTEGER NOT NULL REFERENCES inventory_transfers(id) ON DELETE CASCADE,
+  item_id INTEGER NOT NULL,
+  quantity NUMERIC(10,3) DEFAULT 0,
+  unit_cost NUMERIC(15,2) DEFAULT 0
+);
+
+-- =========================================
+-- ALTER TABLE: add missing columns
+-- (IF NOT EXISTS prevents errors on re-run)
+-- =========================================
+
+-- users: extra HR columns
+ALTER TABLE users ADD COLUMN IF NOT EXISTS position TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS housing_allowance NUMERIC(15,2) DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS transportation_allowance NUMERIC(15,2) DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS insurance_deduction NUMERIC(15,2) DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS bank_name TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS iban TEXT;
+
+-- sales_targets: add period_type and target_count
+ALTER TABLE sales_targets ADD COLUMN IF NOT EXISTS period_type VARCHAR(20) DEFAULT 'monthly';
+ALTER TABLE sales_targets ADD COLUMN IF NOT EXISTS target_count INTEGER DEFAULT 0;
+
+-- sales_invoices: ensure cost_center_id and extra columns
+ALTER TABLE sales_invoices ADD COLUMN IF NOT EXISTS cost_center_id INTEGER;
+
+-- items: costing columns
+ALTER TABLE items ADD COLUMN IF NOT EXISTS average_cost NUMERIC(15,2) DEFAULT 0;
+ALTER TABLE items ADD COLUMN IF NOT EXISTS standard_cost NUMERIC(15,2) DEFAULT 0;
+ALTER TABLE items ADD COLUMN IF NOT EXISTS costing_method VARCHAR(20) DEFAULT 'fifo';
+
+-- clients: extra columns
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS external_ref TEXT;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS region TEXT;
+
+-- suppliers: extra columns
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS account_id INTEGER;
+
+-- bank_accounts: accounting_code
+ALTER TABLE bank_accounts ADD COLUMN IF NOT EXISTS accounting_code TEXT;
+
+-- journal_entries: extra columns
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS party_type VARCHAR(30);
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS party_id INTEGER;
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS bank_account_id INTEGER;
+
+-- attendance: extra columns
+ALTER TABLE attendance ADD COLUMN IF NOT EXISTS early_minutes INTEGER DEFAULT 0;
+ALTER TABLE attendance ADD COLUMN IF NOT EXISTS notes TEXT;
+
+-- expenses: cost_center_id
+ALTER TABLE expenses ADD COLUMN IF NOT EXISTS cost_center_id INTEGER;
+ALTER TABLE expenses ADD COLUMN IF NOT EXISTS reference TEXT;
+
+-- fixed_assets: extra columns
+ALTER TABLE fixed_assets ADD COLUMN IF NOT EXISTS account_id INTEGER;
+
+-- items: extra columns
+ALTER TABLE items ADD COLUMN IF NOT EXISTS external_ref TEXT;
+ALTER TABLE items ADD COLUMN IF NOT EXISTS sale_price NUMERIC(15,2) DEFAULT 0;
+ALTER TABLE items ADD COLUMN IF NOT EXISTS selling_price NUMERIC(15,2) DEFAULT 0;
