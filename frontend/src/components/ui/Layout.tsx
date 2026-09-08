@@ -5,12 +5,205 @@ import {
   Stethoscope, Clock, BarChart3, Building2, UserCircle,
   LogOut, Menu, ChevronDown, X, Wallet,
   Receipt, Settings, Moon, Sun,
-  Store, Shield, Bell,
+  Store, Shield, Bell, ChevronRight,
 } from 'lucide-react';
 import { authStore } from '../../store/authStore';
 import { useApp, toggleTheme } from '../../store/appStore';
 import { useTranslation } from '../../i18n/context';
 import { flushSyncQueue, getPendingSyncCount, subscribeSyncQueue } from '../../services/syncQueue';
+
+// ─── types ────────────────────────────────────────────────────────────────────
+
+interface ChildItem { path: string; label: string }
+interface MenuItem {
+  path?: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  roles: string[];
+  children?: ChildItem[];
+}
+
+// ─── NavItem (leaf) ───────────────────────────────────────────────────────────
+
+function NavLeaf({
+  item,
+  active,
+  onNavigate,
+}: {
+  item: { path: string; label: string; icon: React.ComponentType<{ className?: string }> };
+  active: boolean;
+  onNavigate: () => void;
+}) {
+  return (
+    <Link
+      to={item.path}
+      onClick={onNavigate}
+      className={`
+        group flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
+        transition-all duration-150
+        ${active
+          ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300'
+          : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-gray-100'
+        }
+      `}
+    >
+      <item.icon className={`w-[18px] h-[18px] flex-shrink-0 ${active ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} />
+      <span className="truncate">{item.label}</span>
+      {active && <span className="mr-auto w-1.5 h-1.5 rounded-full bg-indigo-500 flex-shrink-0" />}
+    </Link>
+  );
+}
+
+// ─── NavGroup (expandable) ────────────────────────────────────────────────────
+
+function NavGroup({
+  item,
+  childActive,
+  expanded,
+  onToggle,
+  onNavigate,
+  currentPath,
+}: {
+  item: MenuItem;
+  childActive: boolean;
+  expanded: boolean;
+  onToggle: () => void;
+  onNavigate: () => void;
+  currentPath: string;
+}) {
+  return (
+    <div>
+      <button
+        onClick={onToggle}
+        className={`
+          w-full group flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
+          transition-all duration-150
+          ${childActive
+            ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300'
+            : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-gray-100'
+          }
+        `}
+      >
+        <item.icon className={`w-[18px] h-[18px] flex-shrink-0 ${childActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} />
+        <span className="flex-1 text-right truncate">{item.label}</span>
+        <ChevronDown
+          className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 ${expanded ? 'rotate-180 text-indigo-500' : 'text-gray-400'}`}
+        />
+      </button>
+
+      {expanded && (
+        <div className="mt-1 mr-[30px] space-y-0.5 border-r-2 border-indigo-100 dark:border-indigo-800/50 pr-2">
+          {(item.children ?? []).map(child => {
+            const isChildActive = currentPath === child.path || currentPath.startsWith(child.path + '/');
+            return (
+              <Link
+                key={child.path}
+                to={child.path}
+                onClick={onNavigate}
+                className={`
+                  flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm
+                  transition-all duration-150
+                  ${isChildActive
+                    ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 font-medium'
+                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:text-gray-800 dark:hover:text-gray-200'
+                  }
+                `}
+              >
+                {isChildActive && <ChevronRight className="w-3 h-3 flex-shrink-0 text-indigo-500" />}
+                <span>{child.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Sidebar content (no hooks — pure rendering) ──────────────────────────────
+
+function SidebarNav({
+  filteredMenu,
+  expandedMenus,
+  toggleMenu,
+  location,
+  setSidebarOpen,
+  title,
+}: {
+  filteredMenu: MenuItem[];
+  expandedMenus: Record<string, boolean>;
+  toggleMenu: (label: string) => void;
+  location: { pathname: string };
+  setSidebarOpen: (v: boolean) => void;
+  title: string;
+}) {
+  const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
+  const isChildActive = (children: ChildItem[]) => children.some(c => location.pathname === c.path || location.pathname.startsWith(c.path + '/'));
+
+  return (
+    <>
+      {/* Brand */}
+      <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100 dark:border-gray-700/50 flex-shrink-0">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
+            <Building2 className="w-4 h-4 text-white" />
+          </div>
+          <div className="min-w-0">
+            <p className="font-bold text-sm text-gray-900 dark:text-white truncate leading-tight">{title}</p>
+            <p className="text-[10px] text-indigo-500 dark:text-indigo-400 font-medium">نظام محاسبي</p>
+          </div>
+        </div>
+        <button
+          onClick={() => setSidebarOpen(false)}
+          className="lg:hidden w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex-shrink-0"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
+        {filteredMenu.map((item) => {
+          if (item.children && item.children.length > 0) {
+            const childActive = isChildActive(item.children);
+            const expanded = expandedMenus[item.label] !== undefined
+              ? expandedMenus[item.label]
+              : childActive;
+            return (
+              <NavGroup
+                key={item.label}
+                item={item}
+                childActive={childActive}
+                expanded={expanded}
+                onToggle={() => toggleMenu(item.label)}
+                onNavigate={() => setSidebarOpen(false)}
+                currentPath={location.pathname}
+              />
+            );
+          }
+          return (
+            <NavLeaf
+              key={item.path}
+              item={item as { path: string; label: string; icon: React.ComponentType<{ className?: string }> }}
+              active={isActive(item.path!)}
+              onNavigate={() => setSidebarOpen(false)}
+            />
+          );
+        })}
+      </nav>
+
+      {/* Footer */}
+      <div className="flex-shrink-0 px-3 pb-3">
+        <div className="h-px bg-gray-100 dark:bg-gray-700/50 mb-3" />
+        <p className="text-[10px] text-center text-gray-400 dark:text-gray-600">
+          النظام المحاسبي المتكامل v1.0
+        </p>
+      </div>
+    </>
+  );
+}
+
+// ─── Main Layout ──────────────────────────────────────────────────────────────
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -24,7 +217,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => subscribeSyncQueue(() => setPendingSyncCount(getPendingSyncCount())), []);
 
-  const menuItems = [
+  // Close sidebar on route change (mobile)
+  useEffect(() => { setSidebarOpen(false); }, [location.pathname]);
+
+  const menuItems: MenuItem[] = [
     { path: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard, roles: ['admin','manager','accountant','sales_rep','employee'] },
     { path: '/pos', label: t('sales.pos'), icon: Store, roles: ['admin','manager','sales_rep'] },
     {
@@ -128,22 +324,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     },
   ];
 
-  const toggleMenu = (label: string) => {
+  const filteredMenu = menuItems.filter(item => user && item.roles.includes(user.role));
+
+  const toggleMenu = (label: string) =>
     setExpandedMenus(prev => ({ ...prev, [label]: !prev[label] }));
-  };
 
-  const isActive = (path: string) => location.pathname === path;
-  const isChildActive = (children: { path: string }[]) => children.some(c => location.pathname.startsWith(c.path));
-
-  const handleLogout = () => {
-    authStore.clearAuth();
-    navigate('/login');
-  };
-
-  const filteredMenu = menuItems.filter(item => {
-    if (!user) return false;
-    return item.roles.includes(user.role);
-  });
+  const handleLogout = () => { authStore.clearAuth(); navigate('/login'); };
 
   const roleLabel: Record<string, string> = {
     admin: t('admin.title'),
@@ -154,193 +340,136 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     '': '',
   };
 
-  // Sidebar nav content — shared between desktop and mobile
-  const SidebarContent = () => (
-    <>
-      {/* Logo */}
-      <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <Building2 className="w-6 h-6 text-primary-600" />
-          <span className="font-bold text-base dark:text-white">{t('auth.login_title')}</span>
-        </div>
-        <button
-          onClick={() => setSidebarOpen(false)}
-          className="lg:hidden p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
-        >
-          <X className="w-4 h-4 dark:text-white" />
-        </button>
-      </div>
-
-      {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto p-3 space-y-0.5">
-        {filteredMenu.map((item: any) => {
-          if ('children' in item && item.children) {
-            const open = expandedMenus[item.label] !== undefined
-              ? expandedMenus[item.label]
-              : isChildActive(item.children);
-            return (
-              <div key={item.label}>
-                <button
-                  onClick={() => toggleMenu(item.label)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                    isChildActive(item.children)
-                      ? 'bg-primary-50 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 font-medium'
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  <item.icon className="w-5 h-5 flex-shrink-0" />
-                  <span className="flex-1 text-right">{item.label}</span>
-                  <ChevronDown className={`w-4 h-4 flex-shrink-0 transition-transform duration-150 ${open ? 'rotate-180' : ''}`} />
-                </button>
-                {open && (
-                  <div className="mt-0.5 mb-1 mr-4 space-y-0.5 border-r-2 border-primary-100 dark:border-primary-800 pr-2">
-                    {item.children.map((child: any) => (
-                      <Link
-                        key={child.path}
-                        to={child.path}
-                        onClick={() => setSidebarOpen(false)}
-                        className={`block px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                          isActive(child.path)
-                            ? 'bg-primary-50 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 font-medium'
-                            : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200'
-                        }`}
-                      >
-                        {child.label}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          }
-          return (
-            <Link
-              key={item.path}
-              to={item.path!}
-              onClick={() => setSidebarOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                isActive(item.path!)
-                  ? 'bg-primary-50 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 font-medium'
-                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
-            >
-              <item.icon className="w-5 h-5 flex-shrink-0" />
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
-    </>
-  );
+  const sidebarProps = {
+    filteredMenu,
+    expandedMenus,
+    toggleMenu,
+    location,
+    setSidebarOpen,
+    title: t('auth.login_title'),
+  };
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden" style={{ direction: 'rtl' }}>
 
-      {/* ====== DESKTOP SIDEBAR — always visible, part of flex row ====== */}
+      {/* ── DESKTOP SIDEBAR ─────────────────────────────── */}
       <aside
-        style={{ width: '256px', minWidth: '256px' }}
-        className="hidden lg:flex flex-col h-full bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700"
+        className="hidden lg:flex flex-col h-full bg-white dark:bg-gray-800 shadow-sm"
+        style={{ width: '260px', minWidth: '260px', borderLeft: '1px solid rgba(0,0,0,0.06)' }}
       >
-        <SidebarContent />
+        <SidebarNav {...sidebarProps} />
       </aside>
 
-      {/* ====== MOBILE SIDEBAR — fixed overlay ====== */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-          style={{ backgroundColor: 'rgba(0,0,0,0.3)' }}
-        />
-      )}
+      {/* ── MOBILE OVERLAY ──────────────────────────────── */}
+      <div
+        className={`fixed inset-0 z-40 lg:hidden transition-opacity duration-200 ${sidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+        style={{ backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)' }}
+        onClick={() => setSidebarOpen(false)}
+      />
+
+      {/* ── MOBILE SIDEBAR ──────────────────────────────── */}
       <aside
         className={`
-          fixed top-0 right-0 bottom-0 z-50 lg:hidden
-          flex flex-col
-          bg-white dark:bg-gray-800
-          border-l border-gray-200 dark:border-gray-700
-          transition-transform duration-200 ease-in-out
+          fixed top-0 right-0 bottom-0 z-50 lg:hidden flex flex-col
+          bg-white dark:bg-gray-800 shadow-2xl
+          transition-transform duration-300 ease-out
           ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'}
         `}
-        style={{ width: '256px' }}
+        style={{ width: '280px', borderLeft: '1px solid rgba(0,0,0,0.06)' }}
       >
-        <SidebarContent />
+        <SidebarNav {...sidebarProps} />
       </aside>
 
-      {/* ====== MAIN CONTENT ====== */}
+      {/* ── MAIN CONTENT ────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
-        {/* Header */}
+        {/* ── TOP HEADER ─────────────────────────────────── */}
         <header
-          className="flex-shrink-0 h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-4"
-          style={{ direction: 'rtl' }}
+          className="flex-shrink-0 bg-white dark:bg-gray-800 flex items-center justify-between px-4 gap-2"
+          style={{ height: '60px', borderBottom: '1px solid rgba(0,0,0,0.06)', direction: 'rtl' }}
         >
-          {/* Mobile menu toggle */}
+          {/* Mobile hamburger */}
           <button
             onClick={() => setSidebarOpen(true)}
-            className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+            className="lg:hidden w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors flex-shrink-0"
           >
-            <Menu className="w-5 h-5 dark:text-white" />
+            <Menu className="w-5 h-5" />
           </button>
 
-          {/* Right side controls */}
-          <div className="flex items-center gap-2 mr-auto lg:mr-0">
-            {/* User info */}
-            <div className="hidden sm:block text-right">
-              <p className="text-sm font-medium dark:text-white leading-tight">{user?.full_name}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">{roleLabel[user?.role || ''] || user?.role}</p>
-            </div>
-            <div className="w-9 h-9 bg-primary-100 dark:bg-primary-900 rounded-full flex items-center justify-center flex-shrink-0">
-              <UserCircle className="w-6 h-6 text-primary-600 dark:text-primary-300" />
-            </div>
+          {/* Page title — empty spacer on desktop */}
+          <div className="hidden lg:block flex-1" />
 
-            {/* Theme toggle */}
-            <button
-              onClick={() => toggleTheme()}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500 dark:text-gray-400"
-            >
-              {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </button>
+          {/* Controls */}
+          <div className="flex items-center gap-1.5">
 
-            {/* Currency */}
-            <span className="hidden sm:inline-block px-2 py-1 text-xs font-medium text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-600 rounded-lg">
-              {symbol}
-            </span>
-
-            {/* Pending sync */}
+            {/* Pending sync badge */}
             {pendingSyncCount > 0 && (
               <button
                 onClick={() => void flushSyncQueue()}
-                className="px-2 py-1 text-xs font-medium rounded-lg border border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100"
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700/50 transition-colors"
               >
-                {pendingSyncCount} مزامنة
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                {pendingSyncCount}
               </button>
             )}
 
-            {/* Language switcher */}
+            {/* Language */}
             <button
               onClick={() => setLanguage(language === 'ar' ? 'en' : language === 'en' ? 'ku' : 'ar')}
-              className="px-2 py-1 text-xs font-medium hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-600"
+              className="w-9 h-9 flex items-center justify-center rounded-xl text-xs font-bold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 transition-colors"
             >
               {language === 'ar' ? 'EN' : language === 'en' ? 'KU' : 'AR'}
             </button>
 
+            {/* Currency chip */}
+            <span className="hidden sm:flex items-center px-2.5 h-9 text-xs font-semibold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-xl">
+              {symbol}
+            </span>
+
+            {/* Theme toggle */}
+            <button
+              onClick={() => toggleTheme()}
+              className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors"
+            >
+              {isDark ? <Sun className="w-[18px] h-[18px]" /> : <Moon className="w-[18px] h-[18px]" />}
+            </button>
+
+            {/* Divider */}
+            <div className="w-px h-6 bg-gray-200 dark:bg-gray-600 mx-0.5" />
+
+            {/* User */}
+            <div className="flex items-center gap-2 pl-1">
+              <div className="hidden sm:block text-right">
+                <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-tight">{user?.full_name}</p>
+                <p className="text-[11px] text-indigo-500 dark:text-indigo-400 leading-tight">{roleLabel[user?.role || ''] || user?.role}</p>
+              </div>
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center flex-shrink-0 shadow-sm">
+                <UserCircle className="w-5 h-5 text-white" />
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="w-px h-6 bg-gray-200 dark:bg-gray-600 mx-0.5" />
+
             {/* Logout */}
             <button
               onClick={handleLogout}
-              className="p-2 hover:bg-red-50 dark:hover:bg-red-900/50 rounded-lg text-red-500 dark:text-red-400"
+              className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-red-50 dark:hover:bg-red-900/30 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
               title={t('auth.logout')}
             >
-              <LogOut className="w-5 h-5" />
+              <LogOut className="w-[18px] h-[18px]" />
             </button>
           </div>
         </header>
 
-        {/* Page content */}
+        {/* ── PAGE CONTENT ─────────────────────────────────── */}
         <main
-          className="flex-1 overflow-y-auto p-4 lg:p-6"
+          className="flex-1 overflow-y-auto"
           style={{ direction: isRtl ? 'rtl' : 'ltr' }}
         >
-          {children}
+          <div className="p-4 lg:p-6">
+            {children}
+          </div>
         </main>
       </div>
     </div>
