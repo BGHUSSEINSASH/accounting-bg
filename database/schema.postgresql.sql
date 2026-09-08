@@ -1343,3 +1343,29 @@ ALTER TABLE fixed_assets ADD COLUMN IF NOT EXISTS account_id INTEGER;
 ALTER TABLE items ADD COLUMN IF NOT EXISTS external_ref TEXT;
 ALTER TABLE items ADD COLUMN IF NOT EXISTS sale_price NUMERIC(15,2) DEFAULT 0;
 ALTER TABLE items ADD COLUMN IF NOT EXISTS selling_price NUMERIC(15,2) DEFAULT 0;
+
+-- =========================================
+-- HR: Employee salary fields + salary_history
+-- =========================================
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS housing_allowance NUMERIC(15,2) DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS transportation_allowance NUMERIC(15,2) DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS insurance_deduction NUMERIC(15,2) DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS position TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS iban TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS bank_name TEXT;
+
+CREATE TABLE IF NOT EXISTS salary_history (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  old_basic_salary NUMERIC(15,2) DEFAULT 0,
+  new_basic_salary NUMERIC(15,2) DEFAULT 0,
+  old_housing_allowance NUMERIC(15,2) DEFAULT 0,
+  new_housing_allowance NUMERIC(15,2) DEFAULT 0,
+  old_transportation_allowance NUMERIC(15,2) DEFAULT 0,
+  new_transportation_allowance NUMERIC(15,2) DEFAULT 0,
+  change_reason TEXT,
+  effective_date DATE,
+  changed_by INTEGER REFERENCES users(id),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

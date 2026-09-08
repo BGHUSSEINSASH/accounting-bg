@@ -79,6 +79,7 @@ import autoNotificationsRoutes, { runAutoNotifications } from './routes/auto_not
 import searchRoutes from './routes/search';
 import barcodePrintRoutes from './routes/barcode_print';
 import whatsappRoutes from './routes/whatsapp';
+import hrRoutes from './routes/hr';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -278,10 +279,7 @@ app.use('/api/auto-notifications', autoNotificationsRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/barcode-print', barcodePrintRoutes);
 app.use('/api/whatsapp', whatsappRoutes);
-
-// Alias: /api/hr/employees -> same as /api/auth/users (for frontend compatibility)
-import authRoutes2 from './routes/auth';
-app.use('/api/hr', authRoutes2);
+app.use('/api/hr', hrRoutes);
 
 // Health check
 app.get('/api/health', async (_req, res) => {

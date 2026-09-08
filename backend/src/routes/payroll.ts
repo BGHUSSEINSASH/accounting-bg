@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import { query, queryOne, execute, withTransaction, logActivityAsync } from '../config/database';
 import { authenticate, authorize } from '../middleware/auth';
 import { AuthRequest } from '../types';
@@ -21,7 +21,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
     sql += ' ORDER BY u.full_name';
     const records = await query(sql, params);
     res.json(records);
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { console.error('[PAYROLL_GENERATE_ERR]', err.message, err.stack?.split('\n')[1]); res.status(500).json({ error: err.message }); }
 });
 
 router.post('/generate', authorize('admin', 'accountant'), async (req: AuthRequest, res: Response) => {
@@ -49,23 +49,23 @@ router.post('/generate', authorize('admin', 'accountant'), async (req: AuthReque
       const endDate = `${y}-${String(m).padStart(2, '0')}-${new Date(y, m, 0).getDate()}`;
       const absRow = await queryOne(`SELECT COUNT(*) as cnt FROM attendance WHERE user_id = ? AND date BETWEEN ? AND ? AND status = 'absent'`, [emp.id, startDate, endDate]) as any;
       const absenceDays = absRow?.cnt || 0;
-      const dailySalary = (emp.eff_basic || 0) / 26;
+      const dailySalary = (Number(emp.eff_basic) || 0) / 26;
       const absenceDeduction = absenceDays * dailySalary;
-      const overtimeRow = await queryOne(`SELECT COALESCE(SUM(amount), 0) as total FROM overtime_records WHERE employee_id = ? AND TO_CHAR(date, 'MM') = ? AND TO_CHAR(date, 'YYYY') = ? AND approved = 1`,
+      const overtimeRow = await queryOne(`SELECT COALESCE(SUM(amount), 0) as total FROM overtime_records WHERE employee_id = ? AND TO_CHAR(date, 'MM') = ? AND TO_CHAR(date, 'YYYY') = ? AND approved = TRUE`,
         [emp.id, String(m).padStart(2, '0'), String(y)]) as any;
       const overtimeAmount = overtimeRow?.total || 0;
       const loanRow = await queryOne(`SELECT COALESCE(SUM(monthly_deduction), 0) as total FROM employee_loans WHERE user_id = ? AND status = 'active'`, [emp.id]) as any;
       const loanDeduction = loanRow?.total || 0;
-      const gross = (emp.eff_basic || 0) + (emp.eff_housing || 0) + (emp.eff_transport || 0) + overtimeAmount;
-      const totalDeductions = (emp.eff_insurance || 0) + absenceDeduction + loanDeduction;
+      const gross = (Number(emp.eff_basic) || 0) + (Number(emp.eff_housing) || 0) + (Number(emp.eff_transport) || 0) + overtimeAmount;
+      const totalDeductions = (Number(emp.eff_insurance) || 0) + absenceDeduction + loanDeduction;
       const net = Math.max(0, gross - totalDeductions);
       await execute(`INSERT INTO payroll (user_id, month, year, basic_salary, housing_allowance, transportation_allowance, overtime_amount, gross_salary, social_insurance, loan_deduction, absence_deduction, net_salary, status, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?)`,
-        [emp.id, m, y, emp.eff_basic || 0, emp.eff_housing || 0, emp.eff_transport || 0, overtimeAmount, gross, emp.eff_insurance || 0, loanDeduction, absenceDeduction, net, req.user!.id]);
+        [emp.id, m, y, Number(emp.eff_basic)||0, Number(emp.eff_housing)||0, Number(emp.eff_transport)||0, overtimeAmount, gross, Number(emp.eff_insurance)||0, loanDeduction, absenceDeduction, net, req.user!.id]);
       created++;
     }
     void logActivityAsync(req.user!.id, 'generate_payroll', 'payroll');
-    res.json({ message: `تم توليد ${created} كشف راتب`, month: m, year: y });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+    res.json({ message: `ØªÙ… ØªÙˆÙ„ÙŠØ¯ ${created} ÙƒØ´Ù Ø±Ø§ØªØ¨`, month: m, year: y });
+  } catch (err: any) { console.error('[PAYROLL_GENERATE_ERR]', err.message, err.stack?.split('\n')[1]); res.status(500).json({ error: err.message }); }
 });
 
 router.get('/:id', async (req: AuthRequest, res: Response) => {
@@ -73,14 +73,14 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
     const record = await queryOne(`SELECT p.*, u.full_name, u.department, u.position, u.iban, u.bank_name FROM payroll p JOIN users u ON p.user_id = u.id WHERE p.id = ?`, [req.params.id]);
     if (!record) return res.status(404).json({ error: 'Record not found' });
     res.json(record);
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { console.error('[PAYROLL_GENERATE_ERR]', err.message, err.stack?.split('\n')[1]); res.status(500).json({ error: err.message }); }
 });
 
 router.put('/:id', authorize('admin', 'accountant'), async (req: AuthRequest, res: Response) => {
   try {
     const rec = await queryOne('SELECT * FROM payroll WHERE id = ?', [req.params.id]) as any;
     if (!rec) return res.status(404).json({ error: 'Not found' });
-    if (rec.status !== 'draft') return res.status(400).json({ error: 'لا يمكن تعديل كشف راتب معتمد' });
+    if (rec.status !== 'draft') return res.status(400).json({ error: 'Ù„Ø§ ÙŠÙ…ÙƒÙ† ØªØ¹Ø¯ÙŠÙ„ ÙƒØ´Ù Ø±Ø§ØªØ¨ Ù…Ø¹ØªÙ…Ø¯' });
     const { basic_salary, housing_allowance, transportation_allowance, other_allowances, overtime_amount, social_insurance, tax_deduction, loan_deduction, absence_deduction, other_deductions, notes } = req.body;
     const gross = (basic_salary ?? rec.basic_salary) + (housing_allowance ?? rec.housing_allowance) + (transportation_allowance ?? rec.transportation_allowance) + (other_allowances ?? rec.other_allowances ?? 0) + (overtime_amount ?? rec.overtime_amount ?? 0);
     const deductions = (social_insurance ?? rec.social_insurance ?? 0) + (tax_deduction ?? rec.tax_deduction ?? 0) + (loan_deduction ?? rec.loan_deduction ?? 0) + (absence_deduction ?? rec.absence_deduction ?? 0) + (other_deductions ?? rec.other_deductions ?? 0);
@@ -88,16 +88,16 @@ router.put('/:id', authorize('admin', 'accountant'), async (req: AuthRequest, re
     await execute(`UPDATE payroll SET basic_salary=COALESCE(?,basic_salary), housing_allowance=COALESCE(?,housing_allowance), transportation_allowance=COALESCE(?,transportation_allowance), other_allowances=COALESCE(?,other_allowances), overtime_amount=COALESCE(?,overtime_amount), gross_salary=?, social_insurance=COALESCE(?,social_insurance), tax_deduction=COALESCE(?,tax_deduction), loan_deduction=COALESCE(?,loan_deduction), absence_deduction=COALESCE(?,absence_deduction), other_deductions=COALESCE(?,other_deductions), net_salary=?, notes=COALESCE(?,notes) WHERE id=?`,
       [basic_salary, housing_allowance, transportation_allowance, other_allowances, overtime_amount, gross, social_insurance, tax_deduction, loan_deduction, absence_deduction, other_deductions, net, notes, req.params.id]);
     void logActivityAsync(req.user!.id, 'update_payroll', 'payroll', parseInt(req.params.id));
-    res.json({ message: 'تم التحديث', net_salary: net });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+    res.json({ message: 'ØªÙ… Ø§Ù„ØªØ­Ø¯ÙŠØ«', net_salary: net });
+  } catch (err: any) { console.error('[PAYROLL_GENERATE_ERR]', err.message, err.stack?.split('\n')[1]); res.status(500).json({ error: err.message }); }
 });
 
 router.post('/:id/approve', authorize('admin'), async (req: AuthRequest, res: Response) => {
   try {
     await execute("UPDATE payroll SET status = 'approved' WHERE id = ? AND status = 'draft'", [req.params.id]);
     void logActivityAsync(req.user!.id, 'approve_payroll', 'payroll', parseInt(req.params.id));
-    res.json({ message: 'تم الاعتماد' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+    res.json({ message: 'ØªÙ… Ø§Ù„Ø§Ø¹ØªÙ…Ø§Ø¯' });
+  } catch (err: any) { console.error('[PAYROLL_GENERATE_ERR]', err.message, err.stack?.split('\n')[1]); res.status(500).json({ error: err.message }); }
 });
 
 router.post('/:id/pay', authorize('admin', 'accountant'), async (req: AuthRequest, res: Response) => {
@@ -105,22 +105,25 @@ router.post('/:id/pay', authorize('admin', 'accountant'), async (req: AuthReques
     const { payment_date, payment_method } = req.body;
     const rec = await queryOne('SELECT * FROM payroll WHERE id = ?', [req.params.id]) as any;
     if (!rec) return res.status(404).json({ error: 'Not found' });
-    if (rec.status !== 'approved') return res.status(400).json({ error: 'يجب اعتماد كشف الراتب أولاً' });
+    if (rec.status !== 'approved') return res.status(400).json({ error: 'ÙŠØ¬Ø¨ Ø§Ø¹ØªÙ…Ø§Ø¯ ÙƒØ´Ù Ø§Ù„Ø±Ø§ØªØ¨ Ø£ÙˆÙ„Ø§Ù‹' });
     await execute("UPDATE payroll SET status = 'paid', payment_date = ?, payment_method = ? WHERE id = ?",
       [payment_date || new Date().toISOString().split('T')[0], payment_method || 'transfer', req.params.id]);
     void logActivityAsync(req.user!.id, 'pay_payroll', 'payroll', parseInt(req.params.id));
-    res.json({ message: 'تم تسجيل الصرف' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+    res.json({ message: 'ØªÙ… ØªØ³Ø¬ÙŠÙ„ Ø§Ù„ØµØ±Ù' });
+  } catch (err: any) { console.error('[PAYROLL_GENERATE_ERR]', err.message, err.stack?.split('\n')[1]); res.status(500).json({ error: err.message }); }
 });
 
 router.delete('/:id', authorize('admin'), async (req: AuthRequest, res: Response) => {
   try {
     const rec = await queryOne('SELECT * FROM payroll WHERE id = ?', [req.params.id]) as any;
     if (!rec) return res.status(404).json({ error: 'Not found' });
-    if (rec.status === 'paid') return res.status(400).json({ error: 'لا يمكن حذف راتب مدفوع' });
+    if (rec.status === 'paid') return res.status(400).json({ error: 'Ù„Ø§ ÙŠÙ…ÙƒÙ† Ø­Ø°Ù Ø±Ø§ØªØ¨ Ù…Ø¯ÙÙˆØ¹' });
     await execute('DELETE FROM payroll WHERE id = ?', [req.params.id]);
-    res.json({ message: 'تم الحذف' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+    res.json({ message: 'ØªÙ… Ø§Ù„Ø­Ø°Ù' });
+  } catch (err: any) { console.error('[PAYROLL_GENERATE_ERR]', err.message, err.stack?.split('\n')[1]); res.status(500).json({ error: err.message }); }
 });
 
 export default router;
+
+
+

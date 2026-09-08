@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import { query, queryOne } from '../config/database';
 import { authenticate } from '../middleware/auth';
 import { AuthRequest } from '../types';
@@ -21,7 +21,7 @@ router.post('/calculate', authenticate, async (req: AuthRequest, res: Response) 
       const transport = emp.transportation_allowance || 0;
       const insurance = emp.insurance_deduction || 0;
 
-      const overtime = await queryOne(`SELECT COALESCE(SUM(amount), 0) as total FROM overtime_records WHERE employee_id = ? AND TO_CHAR(date, 'MM') = ? AND TO_CHAR(date, 'YYYY') = ? AND approved = 1`,
+      const overtime = await queryOne(`SELECT COALESCE(SUM(amount), 0) as total FROM overtime_records WHERE employee_id = ? AND TO_CHAR(date, 'MM') = ? AND TO_CHAR(date, 'YYYY') = ? AND approved = TRUE`,
         [emp.id, String(month).padStart(2,'0'), String(year)]) as any;
       const deductions = await queryOne(`SELECT COALESCE(SUM(deduction_amount), 0) as total FROM attendance_deductions WHERE employee_id = ? AND month = ? AND year = ?`,
         [emp.id, month, year]) as any;
@@ -50,3 +50,4 @@ router.post('/calculate', authenticate, async (req: AuthRequest, res: Response) 
 });
 
 export default router;
+
