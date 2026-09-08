@@ -1,4 +1,4 @@
-import { Component, ErrorInfo, ReactNode } from 'react';
+﻿import { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface Props {
@@ -36,7 +36,7 @@ export default class ErrorBoundary extends Component<Props, State> {
       if (this.props.fallback) return this.props.fallback;
 
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4" dir="rtl">
           <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 text-center">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full mb-4">
               <AlertTriangle className="w-8 h-8 text-red-600 dark:text-red-400" />
@@ -50,7 +50,7 @@ export default class ErrorBoundary extends Component<Props, State> {
             {this.state.error && (
               <details className="text-left mb-6 bg-gray-50 dark:bg-gray-900 rounded-lg p-3 text-xs text-gray-600 dark:text-gray-400">
                 <summary className="cursor-pointer font-medium mb-1">تفاصيل الخطأ</summary>
-                <pre className="whitespace-pre-wrap break-words mt-2">
+                <pre className="whitespace-pre-wrap break-words mt-2 text-left" dir="ltr">
                   {this.state.error.toString()}
                   {this.state.errorInfo?.componentStack}
                 </pre>
